@@ -106,7 +106,7 @@ const DEFAULT_STATE: AppState = {
   nutrTarget: { kcal: 2000, protein: 50, carbs: 300, fat: 65 },
 }
 
-const STORAGE_KEY = 'ht_v2_state'
+const STORAGE_KEY = 'ht_v3_state'
 
 export function loadState(): AppState {
   try {
