@@ -92,42 +92,15 @@ export const getLast = (n: number): string[] => {
   return days
 }
 
-const sampleDates = (n: number, pct = 0.75): string[] => {
-  const dates: string[] = []
-  for (let i = 0; i < n; i++) {
-    if (Math.random() < pct) {
-      const d = new Date(); d.setDate(d.getDate() - i)
-      dates.push(d.toISOString().slice(0, 10))
-    }
-  }
-  return dates
-}
-
 const DEFAULT_STATE: AppState = {
-  habits: [
-    { id: '1', name: 'Morning Run', icon: 'run', color: 'emerald', freq: 'daily', completedDates: [...sampleDates(30), today()], createdAt: '2024-01-01' },
-    { id: '2', name: 'Read 30 min', icon: 'book', color: 'indigo', freq: 'daily', completedDates: sampleDates(25), createdAt: '2024-01-01' },
-    { id: '3', name: 'Drink Water', icon: 'water', color: 'sky', freq: 'daily', completedDates: [...sampleDates(28), today()], createdAt: '2024-01-01' },
-    { id: '4', name: 'Meditate', icon: 'meditate', color: 'violet', freq: 'daily', completedDates: sampleDates(20), createdAt: '2024-01-01' },
-    { id: '5', name: 'Journal', icon: 'write', color: 'amber', freq: 'daily', completedDates: sampleDates(18), createdAt: '2024-01-01' },
-    { id: '6', name: 'Weekly Review', icon: 'target' as HabitIcon, color: 'rose', freq: 'weekly', completedDates: sampleDates(10, 0.6), createdAt: '2024-01-01' },
-  ] as Habit[],
-  waterLogs: [{ date: today(), cups: 5, ml: 1250 }],
-  sleepLogs: [{ date: today(), bedTime: '23:00', wakeTime: '06:30', hours: 7.5 }],
-  journalEntries: [
-    { id: 'j1', date: today(), mood: 4, text: 'Great day today. Finished my morning run and felt energized all day.' },
-    { id: 'j2', date: getLast(7)[0], mood: 3, text: 'A bit tired but managed to complete most habits.' },
-  ],
-  mealLogs: [
-    { id: 'm1', date: today(), name: 'Nasi Goreng', kcal: 450, protein: 12, carbs: 65, fat: 15 },
-    { id: 'm2', date: today(), name: 'Ayam Bakar', kcal: 320, protein: 35, carbs: 5, fat: 14 },
-  ],
-  focusSessions: [
-    { date: today(), minutes: 25, habitId: '1' },
-    { date: today(), minutes: 25 },
-  ],
+  habits: [],
+  waterLogs: [],
+  sleepLogs: [],
+  journalEntries: [],
+  mealLogs: [],
+  focusSessions: [],
   reminders: [],
-  userName: 'Orias',
+  userName: 'You',
   waterTarget: 8,
   sleepTarget: 7.5,
   nutrTarget: { kcal: 2000, protein: 50, carbs: 300, fat: 65 },
