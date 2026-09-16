@@ -1,0 +1,10 @@
+{
+  "description": "Track and manage daily habits with an intuitive interface designed for users seeking to improve productivity and personal growth.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

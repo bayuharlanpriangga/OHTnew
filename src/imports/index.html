@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="en" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="google" content="notranslate">
+<meta http-equiv="Content-Language" content="en">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#FFE600">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>OHT — Orias Habit Tracker</title>
+<link rel="icon" type="image/svg+xml" id="favicon-link" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIiB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCI+CiAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjEyMCIgaGVpZ2h0PSIxMjAiIGZpbGw9IiMwYTBhMGEiLz4KICA8cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMTIwIiBoZWlnaHQ9IjI4IiBmaWxsPSIjRkZFNjAwIi8+CiAgPHJlY3QgeD0iMjgiIHk9IjAiIHdpZHRoPSI4IiBoZWlnaHQ9IjE0IiBmaWxsPSIjMGEwYTBhIi8+CiAgPHJlY3QgeD0iODQiIHk9IjAiIHdpZHRoPSI4IiBoZWlnaHQ9IjE0IiBmaWxsPSIjMGEwYTBhIi8+CiAgPHJlY3QgeD0iMTAiIHk9IjM4IiB3aWR0aD0iMjYiIGhlaWdodD0iMjIiIGZpbGw9IiMyMjIiLz4KICA8cmVjdCB4PSI0NyIgeT0iMzgiIHdpZHRoPSIyNiIgaGVpZ2h0PSIyMiIgZmlsbD0iIzIyMiIvPgogIDxyZWN0IHg9Ijg0IiB5PSIzOCIgd2lkdGg9IjI2IiBoZWlnaHQ9IjIyIiBmaWxsPSIjRkZFNjAwIi8+CiAgPHJlY3QgeD0iMTAiIHk9IjY4IiB3aWR0aD0iMjYiIGhlaWdodD0iMjIiIGZpbGw9IiNGRkU2MDAiLz4KICA8cmVjdCB4PSI0NyIgeT0iNjgiIHdpZHRoPSIyNiIgaGVpZ2h0PSIyMiIgZmlsbD0iI0ZGRTYwMCIvPgogIDxyZWN0IHg9Ijg0IiB5PSI2OCIgd2lkdGg9IjI2IiBoZWlnaHQ9IjIyIiBmaWxsPSIjRkZFNjAwIi8+CiAgPHJlY3QgeD0iMTAiIHk9Ijk4IiB3aWR0aD0iMjYiIGhlaWdodD0iMTgiIGZpbGw9IiNGRkU2MDAiLz4KICA8cmVjdCB4PSI0NyIgeT0iOTgiIHdpZHRoPSIyNiIgaGVpZ2h0PSIxOCIgZmlsbD0iI0ZGNkIwMCIvPgogIDxyZWN0IHg9Ijg0IiB5PSI5OCIgd2lkdGg9IjI2IiBoZWlnaHQ9IjE4IiBmaWxsPSIjMzMzIi8+Cjwvc3ZnPg==">
+<script>
+// Early accent bootstrap — runs before first paint to avoid flash of wrong color
+// on both the favicon and the loading screen.
+(function(){
+  try {
+    var HEX = {pink:'#FF3CAC',green:'#AAFF00',blue:'#00B4FF',orange:'#FF6B00'};
+    var raw = localStorage.getItem('hb_v5');
+    var theme = null;
+    if (raw) { var d = JSON.parse(raw); theme = d && d.accentTheme; }
+    var hex = HEX[theme] || '#FFE600';
+    if (theme && HEX[theme]) document.documentElement.setAttribute('data-accent', theme);
+    // Sinkronkan status bar PWA (meta theme-color) dengan accent yang dipilih
+    var metaTc = document.querySelector('meta[name="theme-color"]');
+    if (metaTc) metaTc.setAttribute('content', hex);
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">'
+      + '<rect x="0" y="0" width="120" height="120" fill="#0a0a0a"/>'
+      + '<rect x="0" y="0" width="120" height="28" fill="' + hex + '"/>'
+      + '<rect x="28" y="0" width="8" height="14" fill="#0a0a0a"/>'
+      + '<rect x="84" y="0" width="8" height="14" fill="#0a0a0a"/>'
+      + '<rect x="10" y="38" width="26" height="22" fill="#222"/>'
+      + '<rect x="47" y="38" width="26" height="22" fill="#222"/>'
+      + '<rect x="84" y="38" width="26" height="22" fill="' + hex + '"/>'
+      + '<rect x="10" y="68" width="26" height="22" fill="' + hex + '"/>'
+      + '<rect x="47" y="68" width="26" height="22" fill="' + hex + '"/>'
+      + '<rect x="84" y="68" width="26" height="22" fill="' + hex + '"/>'
+      + '<rect x="10" y="98" width="26" height="18" fill="' + hex + '"/>'
+      + '<rect x="47" y="98" width="26" height="18" fill="#FF6B00"/>'
+      + '<rect x="84" y="98" width="26" height="18" fill="#333"/>'
+      + '</svg>';
+    var link = document.getElementById('favicon-link');
+    if (link) link.href = 'data:image/svg+xml;base64,' + btoa(svg);
+    window._OHT_ACCENT_HEX = hex;
+  } catch(e) {}
+})();
+</script>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;600;700&family=IBM+Plex+Mono:wght@400;700&family=Roboto:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+</head>
+<body class="notranslate" translate="no">
+
+<!-- ══ LOADING SCREEN ══ -->
+<div id="oht-loader" style="
+  position:fixed;inset:0;z-index:99999;
+  background:var(--bg,#FFF9E6);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:0;overflow:hidden;
+">
+  <!-- scanline texture overlay -->
+  <div style="
+    position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(10,10,10,.025) 0px,rgba(10,10,10,.025) 1px,transparent 1px,transparent 4px);
+    z-index:1;
+  "></div>
+
+  <!-- corner accents -->
+  <div style="position:absolute;top:0;left:0;width:40px;height:40px;border-top:4px solid var(--yellow,#FFE600);border-left:4px solid var(--yellow,#FFE600);z-index:2;"></div>
+  <div style="position:absolute;top:0;right:0;width:40px;height:40px;border-top:4px solid var(--yellow,#FFE600);border-right:4px solid var(--yellow,#FFE600);z-index:2;"></div>
+  <div style="position:absolute;bottom:0;left:0;width:40px;height:40px;border-bottom:4px solid var(--yellow,#FFE600);border-left:4px solid var(--yellow,#FFE600);z-index:2;"></div>
+  <div style="position:absolute;bottom:0;right:0;width:40px;height:40px;border-bottom:4px solid var(--yellow,#FFE600);border-right:4px solid var(--yellow,#FFE600);z-index:2;"></div>
+
+  <!-- main content -->
+  <div style="position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;width:100%;max-width:340px;padding:0 24px;">
+
+    <!-- animated icon (matches favicon design) -->
+    <div class="loader-icon-wrap">
+      <svg class="loader-icon" viewBox="0 0 120 120" width="128" height="128">
+        <rect class="loader-rect" style="animation-delay:0s;" x="0" y="0" width="120" height="120" fill="#0a0a0a"/>
+        <rect class="loader-rect" style="animation-delay:.05s;" x="0" y="0" width="120" height="28" fill="var(--yellow,#FFE600)"/>
+        <rect class="loader-rect" style="animation-delay:.09s;" x="28" y="0" width="8" height="14" fill="#0a0a0a"/>
+        <rect class="loader-rect" style="animation-delay:.09s;" x="84" y="0" width="8" height="14" fill="#0a0a0a"/>
+        <rect class="loader-rect" style="animation-delay:.20s;" x="10" y="38" width="26" height="22" fill="#222"/>
+        <rect class="loader-rect" style="animation-delay:.26s;" x="47" y="38" width="26" height="22" fill="#222"/>
+        <rect class="loader-rect" style="animation-delay:.32s;" x="84" y="38" width="26" height="22" fill="var(--yellow,#FFE600)"/>
+        <rect class="loader-rect" style="animation-delay:.38s;" x="10" y="68" width="26" height="22" fill="var(--yellow,#FFE600)"/>
+        <rect class="loader-rect" style="animation-delay:.44s;" x="47" y="68" width="26" height="22" fill="var(--yellow,#FFE600)"/>
+        <rect class="loader-rect" style="animation-delay:.50s;" x="84" y="68" width="26" height="22" fill="var(--yellow,#FFE600)"/>
+        <rect class="loader-rect" style="animation-delay:.56s;" x="10" y="98" width="26" height="18" fill="var(--yellow,#FFE600)"/>
+        <rect class="loader-rect" style="animation-delay:.62s;" x="47" y="98" width="26" height="18" fill="#FF6B00"/>
+        <rect class="loader-rect" style="animation-delay:.68s;" x="84" y="98" width="26" height="18" fill="#333"/>
+      </svg>
+    </div>
+    <!-- title block (unboxed) -->
+    <div style="text-align:center;margin-top:14px;margin-bottom:40px;">
+      <div style="
+        font-family:'Archivo Black',Arial Black,sans-serif;
+        font-size:30px;line-height:1;letter-spacing:1px;
+        color:var(--black,#0a0a0a);
+      ">OHT</div>
+      <div style="
+        font-family:'IBM Plex Mono',monospace;
+        font-size:9px;letter-spacing:3.5px;margin-top:8px;
+        color:#888;text-transform:uppercase;
+      ">Orias Habit Tracker</div>
+    </div>
+
+    <!-- progress bar container -->
+    <div style="width:100%;position:relative;margin-bottom:10px;">
+      <!-- label row -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:#888;letter-spacing:2px;text-transform:uppercase;" id="loader-status">INITIALIZING</div>
+        <div style="font-family:'Archivo Black',Arial Black,sans-serif;font-size:13px;color:var(--black,#0a0a0a);" id="loader-pct">0%</div>
+      </div>
+      <!-- bar track — neobrutalist: segmented blocks -->
+      <div style="
+        width:100%;height:16px;
+        background:var(--surface,#fffff0);
+        border:3px solid var(--black,#0a0a0a);
+        box-shadow:4px 4px 0 var(--yellow,#FFE600);
+        position:relative;overflow:hidden;
+      ">
+        <!-- fill -->
+        <div id="loader-fill" style="
+          height:100%;width:0%;
+          background:var(--yellow,#FFE600);
+          transition:width .18s linear;
+          position:relative;
+        ">
+          <!-- animated stripe inside fill -->
+          <div style="
+            position:absolute;inset:0;
+            background:repeating-linear-gradient(
+              90deg,
+              transparent 0px, transparent 10px,
+              rgba(0,0,0,.18) 10px, rgba(0,0,0,.18) 12px
+            );
+          "></div>
+        </div>
+        <!-- segment grid overlay — always on top of fill -->
+        <div style="
+          position:absolute;inset:0;
+          background:repeating-linear-gradient(
+            90deg,
+            transparent 0px, transparent 11px,
+            var(--black,#0a0a0a) 11px, var(--black,#0a0a0a) 13px
+          );
+          opacity:.9;
+          pointer-events:none;
+        "></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- footer — pinned to bottom of loading screen -->
+  <div style="position:absolute;left:0;right:0;bottom:28px;z-index:3;font-family:'Space Grotesk',sans-serif;font-size:10px;color:#888;text-align:center;">
+    Powered by <span style="color:var(--yellow,#FFE600);font-weight:700;">Orias</span>
+  </div>
+</div>
+
+
+<div class="topbar">
+  <div class="topbar-left" onclick="navigate('settings')" title="Profil & pengaturan">
+    <div class="hdr-avatar-wrap" onclick="event.stopPropagation();document.getElementById('hdr-photo-input').click();" title="Ganti foto profil">
+      <img id="hdr-avatar-photo" class="hdr-avatar-photo" style="display:none;" alt="Foto profil">
+      <canvas id="xp-avatar-canvas" width="48" height="56" style="display:block;"></canvas>
+      <div class="hdr-avatar-edit"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+      <input type="file" id="hdr-photo-input" accept="image/*" style="display:none;" onchange="onProfilePhotoSelected(event)">
+    </div>
+    <div class="hdr-info">
+      <div class="hdr-nickname" id="xp-name">User</div>
+      <div class="hdr-level-lbl" id="xp-level">LVL 1</div>
+      <div class="xp-track hdr-level-track"><div class="xp-fill" id="xp-bar" style="width:0%"></div></div>
+      <div class="xp-nums hdr-xp-nums"><span id="xp-cur">0</span><span id="xp-max">100 XP</span></div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="freeze-chip freeze-chip-sm" id="freeze-chip" onclick="openModal('modal-freeze')" title="Streak Freeze">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 7l-5 5-5-5"/><path d="M17 17l-5-5-5 5"/><path d="M2 12l5-2.5L2 7"/><path d="M22 12l-5 2.5L22 17"/></svg>
+      <span class="freeze-count" id="freeze-count">0</span>
+    </div>
+    <button class="btn btn-icon btn-sm" aria-label="Install App" id="pwa-install-btn" onclick="installPWA()" style="display:none;padding:5px;" title="Install App"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><rect x="5" y="2" width="14" height="20"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></button>
+    <button class="btn btn-icon btn-sm" onclick="toggleSound()" title="Sound" aria-label="Toggle Sound" style="padding:5px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" id="sound-icon"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 010 7"/><path d="M19 5a9 9 0 010 14"/></svg></button>
+    <button class="btn btn-sm" onclick="openAddModal()" aria-label="Add Habit" style="padding:6px 10px;gap:3px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>ADD</button>
+    <button class="btn btn-sm btn-primary" onclick="completeAll()" aria-label="Complete All Habits" style="padding:6px 10px;gap:3px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><polyline points="20 6 9 17 4 12"/></svg>ALL</button>
+  </div>
+</div>
+<div class="sound-indicator" id="sound-indicator"></div>
+
+<div class="main-scroll" id="main-scroll">
+
+<!-- ══ HABITS ══ -->
+<div class="page active" id="page-habits"><div class="page-content">
+  <div class="sec-hdr"><div class="sec-title">Habits</div><div style="display:flex;gap:4px;"><button class="btn btn-sm" onclick="openModal('modal-dna-import')">🧬</button><button class="btn btn-sm btn-primary" onclick="openAddModal()">+ NEW</button></div></div>
+
+  <div class="habits-tabs" id="habits-tabs">
+    <button class="htab active" data-tab="all" onclick="setHabitsTab('all',this)">All</button>
+    <button class="htab" data-tab="daily" onclick="setHabitsTab('daily',this)">Daily</button>
+    <button class="htab" data-tab="weekly" onclick="setHabitsTab('weekly',this)">Weekly</button>
+    <button class="htab" data-tab="monthly" onclick="setHabitsTab('monthly',this)">Monthly</button>
+  </div>
+
+  <!-- ALL HABITS -->
+  <div class="habit-period-section" data-period="daily">
+    <div class="psh"><div class="psh-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Daily</div><span class="psh-badge" id="daily-count-badge">0</span></div>
+    <div class="habits-list" id="daily-habits-list"></div>
+  </div>
+  <div class="habit-period-section" data-period="weekly">
+    <div class="psh weekly"><div class="psh-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="3" x2="8" y2="6"/><line x1="16" y1="3" x2="16" y2="6"/></svg>Weekly</div><span class="psh-badge" id="weekly-count-badge">0</span></div>
+    <div class="habits-list" id="weekly-habits-list"></div>
+  </div>
+  <div class="habit-period-section" data-period="monthly">
+    <div class="psh monthly"><div class="psh-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><rect x="3" y="3" width="18" height="18"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>Monthly</div><span class="psh-badge" id="monthly-count-badge">0</span></div>
+    <div class="habits-list" id="monthly-habits-list"></div>
+  </div>
+
+
+
+</div></div>
+
+<!-- ══ REPORT ══ -->
+<div class="page" id="page-report"><div class="page-content">
+  <!-- Header: title + month filter -->
+  <div class="sec-hdr">
+    <div class="sec-title">Report</div>
+    <div class="oht-datepicker-wrap" id="wrap-report-month-filter">
+      <button class="btn btn-sm" onclick="openMonthPicker()" style="gap:5px;"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg><span id="report-month-label">—</span></button>
+      <button class="btn btn-sm btn-primary" onclick="setReportMonth(0)">BULAN INI</button>
+    </div>
+  </div>
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--yellow);margin-bottom:11px;" id="report-viewing-date"></div>
+
+  <!-- Stats -->
+  <div class="report-grid-3" id="report-key-stats"></div>
+
+  <!-- Completion chart -->
+  <div class="sec-hdr"><div class="sec-title">Completion</div></div>
+  <div class="bar-chart-wrap"><div class="bar-chart" id="report-chart" style="height:88px;"></div><div class="chart-days" id="report-chart-labels"></div></div>
+
+  <!-- Water Tracker -->
+  <div class="sec-hdr"><div class="sec-title">Water Tracker</div><span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);" id="report-water-avg"></span></div>
+  <div class="bar-chart-wrap"><div class="bar-chart" id="report-water-chart" style="height:70px;"></div><div class="chart-days" id="report-water-chart-labels"></div></div>
+
+  <!-- Sleep Tracker -->
+  <div class="sec-hdr"><div class="sec-title">Sleep Tracker</div><span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);" id="report-sleep-avg"></span></div>
+  <div class="bar-chart-wrap"><div class="bar-chart" id="report-sleep-chart" style="height:70px;"></div><div class="chart-days" id="report-sleep-chart-labels"></div></div>
+
+  <!-- Mood -->
+  <div class="sec-hdr"><div class="sec-title">Mood × Completion</div></div>
+  <div class="analytics-card" id="mood-correlation-card"></div>
+
+  <!-- Habit Performance — dipisah per frekuensi -->
+  <div class="sec-hdr"><div class="sec-title">Habit Performance</div></div>
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);margin-bottom:5px;text-transform:uppercase;letter-spacing:1px;">Daily</div>
+  <div style="overflow-x:auto;margin-bottom:9px;"><table class="report-tbl"><thead><tr><th>Habit</th><th>Rate</th><th>Done</th><th>Streak</th><th>Best</th><th>XP</th></tr></thead><tbody id="perf-body-daily"></tbody></table></div>
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);margin-bottom:5px;text-transform:uppercase;letter-spacing:1px;">Weekly</div>
+  <div style="overflow-x:auto;margin-bottom:9px;"><table class="report-tbl"><thead><tr><th>Habit</th><th>Rate</th><th>Done</th><th>Streak</th><th>Best</th><th>XP</th></tr></thead><tbody id="perf-body-weekly"></tbody></table></div>
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);margin-bottom:5px;text-transform:uppercase;letter-spacing:1px;">Monthly</div>
+  <div style="overflow-x:auto;margin-bottom:11px;"><table class="report-tbl"><thead><tr><th>Habit</th><th>Rate</th><th>Done</th><th>Streak</th><th>Best</th><th>XP</th></tr></thead><tbody id="perf-body-monthly"></tbody></table></div>
+
+  <!-- Activity Heatmap -->
+  <div class="sec-hdr"><div class="sec-title">Activity Heatmap</div></div>
+  <div class="analytics-card"><div class="heatmap-wrap"><div class="heatmap-grid" id="heatmap-grid"></div></div><div class="heatmap-legend"><span>LESS</span><div class="hm-swatch" style="background:#eee;"></div><div class="hm-swatch" style="background:#c8f5a0;"></div><div class="hm-swatch" style="background:#4aab00;"></div><div class="hm-swatch" style="background:#1d6b00;"></div><span>MORE</span></div></div>
+
+
+
+
+
+  <!-- Share + DNA -->
+  <div class="sec-hdr"><div class="sec-title">Share + DNA</div></div>
+  <div class="share-card"><div class="sc-title" id="sc-name">YOUR NAME</div><div class="sc-date" id="sc-date">TODAY</div><div class="sc-stat-row"><div class="sc-stat"><div class="sc-stat-val" id="sc-done">0</div><div class="sc-stat-lbl">Done</div></div><div class="sc-stat"><div class="sc-stat-val" id="sc-streak">0</div><div class="sc-stat-lbl">Streak</div></div><div class="sc-stat"><div class="sc-stat-val" id="sc-xp-val">0</div><div class="sc-stat-lbl">XP</div></div></div><div class="sc-habits-row" id="sc-habits-row"></div><div class="sc-footer">OHT — Orias Habit Tracker</div></div>
+  <div style="display:flex;gap:6px;margin-bottom:14px;">
+    <button class="btn btn-primary" style="flex:1;justify-content:center;" onclick="copyShareText()"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> COPY</button>
+    <button class="btn btn-cyan" style="flex:1;justify-content:center;" onclick="exportDNA()"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2c4 0 8 2 8 6s-4 6-4 10 4 4 8 4"/><path d="M22 22c-4 0-8-2-8-6s4-6 4-10-4-4-8-4"/></svg> DNA</button>
+  </div>
+</div></div>
+
+<!-- ══ STREAKS ══ -->
+<div class="page" id="page-streaks"><div class="page-content">
+  <div class="sec-hdr"><div class="sec-title">Streak Board</div></div>
+
+  <div class="psh"><div class="psh-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Daily</div><span class="psh-badge" id="streak-daily-badge">0</span></div>
+  <div class="streak-grid" id="streak-board-daily"></div>
+
+  <div class="psh weekly"><div class="psh-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="3" x2="8" y2="6"/><line x1="16" y1="3" x2="16" y2="6"/></svg>Weekly</div><span class="psh-badge" id="streak-weekly-badge">0</span></div>
+  <div class="streak-grid" id="streak-board-weekly"></div>
+
+  <div class="psh monthly"><div class="psh-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><rect x="3" y="3" width="18" height="18"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>Monthly</div><span class="psh-badge" id="streak-monthly-badge">0</span></div>
+  <div class="streak-grid" id="streak-board-monthly"></div>
+
+  <div class="psh specialist"><div class="psh-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M12 2a7 7 0 017 7c0 3.87-3 5-3 9H8c0-4-3-5.13-3-9a7 7 0 017-7z"/><line x1="8" y1="22" x2="16" y2="22"/><line x1="12" y1="18" x2="12" y2="22"/></svg>Specialist</div><span class="psh-badge" id="streak-specialist-badge">0</span></div>
+  <div class="streak-grid" id="streak-board-specialist"></div>
+
+</div></div>
+
+<!-- ══ SETTINGS ══ -->
+<div class="page" id="page-settings"><div class="page-content">
+  <!-- Firebase Auth Section -->
+  <div class="sec-hdr"><div class="sec-title">Akun</div></div>
+  <div id="settings-auth-block" style="margin-bottom:14px;">
+    <!-- Dirender oleh JS: login form atau info akun -->
+  </div>
+  <div class="sec-hdr"><div class="sec-title">Pengaturan</div></div>
+  <div class="search-bar-wrap" style="margin-bottom:11px;">
+    <span class="search-ico"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--sub)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+    <input type="text" class="search-bar" placeholder="Search settings..."  oninput="filterSettings(this.value)">
+  </div>
+  <div class="settings-block"><div class="settings-block-header"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> PROFILE</div><div class="settings-block-body">
+    <div class="setting-row"><div><div class="sr-label">Name</div><div class="sr-desc">Shown on profile + share cards</div></div><div style="display:flex;gap:4px;"><input type="text" class="form-input" id="st-name" placeholder="Name" style="width:95px;box-shadow:none;font-size:11px;"><button class="btn btn-sm btn-primary" onclick="saveName()">SAVE</button></div></div>
+  </div></div>
+  <div class="settings-block"><div class="settings-block-header"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg> VACATION MODE</div><div class="settings-block-body">
+    <div class="setting-row"><div><div class="sr-label">Pause Tracking</div><div class="sr-desc">Freezes all streaks, no missed counts</div></div><div class="toggle" id="vacation-toggle" onclick="toggleVacation()"><div class="toggle-thumb"></div></div></div>
+    <div class="setting-row" id="vacation-end-row" style="display:none;"><div><div class="sr-label">Auto-resume on</div></div><input type="date" class="form-input" id="vacation-end-date" style="width:140px;box-shadow:none;font-size:11px;" onchange="setVacationEnd(this.value)"></div>
+  </div></div>
+  <div class="settings-block"><div class="settings-block-header"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v1M12 20v1M4.22 4.22l.7.7M19.07 19.07l.71.71M1 12h2M21 12h2M4.22 19.78l.7-.7M19.07 4.93l.71-.71"/><circle cx="12" cy="12" r="4"/></svg> SOUND & THEME</div><div class="settings-block-body">
+    <div class="toggle-row"><div><div class="toggle-lbl">Sound Effects</div></div><div class="toggle on" id="sound-toggle" onclick="toggleSoundSetting()"><div class="toggle-thumb"></div></div></div>
+    <div class="toggle-row"><div><div class="toggle-lbl">Confetti</div></div><div class="toggle on" id="confetti-toggle" onclick="this.classList.toggle('on');S.confettiOn=this.classList.contains('on');save();"><div class="toggle-thumb"></div></div></div>
+  </div></div>
+  <div class="settings-block"><div class="settings-block-header"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg> WEEKLY REVIEW</div><div class="settings-block-body">
+    <div class="setting-row"><div><div class="sr-label">Open Review</div><div class="sr-desc">Auto-prompts every Sunday</div></div><button class="btn btn-sm btn-purple" onclick="openWeeklyReview()">OPEN</button></div>
+  </div></div>
+  <div class="settings-block"><div class="settings-block-header"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg> HISTORY</div><div class="settings-block-body">
+    <div class="setting-row"><div><div class="sr-label">View Full History</div><div class="sr-desc">All completed habits log</div></div><button class="btn btn-sm" onclick="navigate('history')">OPEN →</button></div>
+    <div class="setting-row"><div><div class="sr-label">Analytics Report</div><div class="sr-desc">Performance deep-dive</div></div><button class="btn btn-sm" onclick="navigate('report')">OPEN →</button></div>
+    <div class="setting-row"><div><div class="sr-label">Calendar View</div></div><button class="btn btn-sm" onclick="navigate('calendar')">OPEN →</button></div>
+    <div class="setting-row"><div><div class="sr-label">Growth & ROI</div></div><button class="btn btn-sm" onclick="navigate('growth')">OPEN →</button></div>
+  </div></div>
+  <div class="settings-block"><div class="settings-block-header"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg> NOTIFICATIONS</div><div class="settings-block-body">
+    <div class="setting-row"><div><div class="sr-label">Enable Reminders</div><div class="sr-desc">Browser push for scheduled habits</div></div><button class="btn btn-sm btn-cyan" onclick="requestNotifPermission()">ENABLE</button></div>
+    <div class="setting-row"><div><div class="sr-label">Status</div></div><span id="notif-status" style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--sub);">checking...</span></div>
+  </div></div>
+  <div class="settings-block"><div class="settings-block-header"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v1M12 20v1M4.22 4.22l.7.7M19.07 19.07l.71.71M1 12h2M21 12h2M4.22 19.78l.7-.7M19.07 4.93l.71-.71"/><circle cx="12" cy="12" r="4"/></svg> ACCENT COLOR</div><div class="settings-block-body">
+    <div class="setting-row"><div><div class="sr-label">Theme Accent</div><div class="sr-desc">Changes primary highlight colors</div></div></div>
+    <div class="accent-row">
+      <div class="accent-opt sel" data-accent="default" style="background:#FFE600;" onclick="setAccentTheme('default')" title="Yellow (default)"></div>
+      <div class="accent-opt" data-accent="pink" style="background:#FF3CAC;" onclick="setAccentTheme('pink')" title="Pink"></div>
+      <div class="accent-opt" data-accent="green" style="background:#AAFF00;" onclick="setAccentTheme('green')" title="Green"></div>
+      <div class="accent-opt" data-accent="blue" style="background:#00B4FF;" onclick="setAccentTheme('blue')" title="Blue"></div>
+      <div class="accent-opt" data-accent="orange" style="background:#FF6B00;" onclick="setAccentTheme('orange')" title="Orange"></div>
+    </div>
+  </div></div>
+  <div class="settings-block"><div class="settings-block-header"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg> ARCHIVE</div><div class="settings-block-body">
+    <div style="font-size:9px;color:var(--sub);padding:5px 0 7px;">Archived habits are hidden but streak history is preserved.</div>
+    <div id="archive-list"></div>
+  </div></div>
+  <div class="settings-block"><div class="settings-block-header"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="5" y="2" width="14" height="20"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg> INSTALL APP</div><div class="settings-block-body">
+    <!-- PWA status block — diisi oleh _updatePWASettingsUI() -->
+    <div id="pwa-install-block">
+      <div class="setting-row">
+        <div><div class="sr-label">Install sebagai App</div><div class="sr-desc">Tambahkan ke Home Screen untuk akses cepat &amp; offline</div></div>
+        <button class="btn btn-sm btn-primary" onclick="installPWA()">
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><rect x="5" y="2" width="14" height="20"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          INSTALL
+        </button>
+      </div>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:7.5px;color:var(--sub);margin-top:5px;line-height:1.5;">
+      Chrome/Edge: tombol INSTALL muncul otomatis.<br>
+      Safari iOS: Share → Add to Home Screen.
+    </div>
+  </div></div>
+
+  <div class="settings-block"><div class="settings-block-header"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> DATA</div><div class="settings-block-body">
+    <div class="setting-row"><div><div class="sr-label">Export JSON</div></div><button class="btn btn-sm" onclick="exportData()"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> EXPORT</button></div>
+    <div class="setting-row"><div><div class="sr-label">Import JSON</div></div><button class="btn btn-sm" onclick="importData()"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> IMPORT</button></div>
+    <div class="setting-row"><div><div class="sr-label">Habit DNA</div><div class="sr-desc">Export/import habit blueprint</div></div><div style="display:flex;gap:4px;"><button class="btn btn-sm btn-cyan" onclick="exportDNA()"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2c4 0 8 2 8 6s-4 6-4 10 4 4 8 4"/><path d="M22 22c-4 0-8-2-8-6s4-6 4-10-4-4-8-4"/></svg> EXPORT</button><button class="btn btn-sm" onclick="openModal('modal-dna-import')"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> IMPORT</button></div></div>
+    <div class="setting-row"><div><div class="sr-label" style="color:var(--red)">Reset All</div></div><button class="btn btn-sm btn-danger" onclick="resetAll()"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg> RESET</button></div>
+  </div></div>
+</div></div>
+
+
+<!-- ══ WELLNESS PAGE ══ -->
+<div class="page" id="page-wellness"><div class="page-content">
+
+  <!-- Date filter -->
+  <div class="sec-hdr">
+    <div class="sec-title">Wellness</div>
+    <div style="display:flex;align-items:center;gap:6px;">
+<div class="oht-datepicker-wrap" id="wrap-wellness-date-filter">
+      <button class="btn btn-sm" onclick="openDatePicker('wellness-date-filter','loadWellnessDate')" style="gap:5px;"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg><span id="wellness-date-filter-label">TANGGAL</span></button>
+      <button class="btn btn-sm btn-primary" onclick="loadWellnessDate('')">TODAY</button>
+    </div>
+    </div>
+  </div>
+  <div style="font-family:var(--mh-font,'Space Grotesk',sans-serif);font-size:11px;color:var(--mh-primary,var(--yellow));margin-bottom:11px;font-weight:600;" id="wellness-viewing-date"></div>
+
+  <!-- WATER TRACKER -->
+  <div class="sec-hdr">
+    <div class="sec-title">Water Tracker</div>
+    <button class="btn btn-xs" onclick="openWaterTargetModal()" title="Set target minum">
+      <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      TARGET
+    </button>
+  </div>
+  <div id="water-target-strip" style="font-family:var(--mh-font,'Space Grotesk',sans-serif);font-size:10px;color:var(--mh-muted,var(--sub));margin-bottom:7px;"></div>
+  <div class="analytics-card" style="margin-bottom:11px;">
+    <!-- Mode toggle -->
+    <div style="display:flex;gap:7px;align-items:center;justify-content:space-between;margin-bottom:11px;flex-wrap:wrap;">
+      <div class="cat-tabs" style="font-size:8px;">
+        <div class="ctab active" id="water-tab-cups" onclick="waterTabTap('cups')" title="Ganti mode di TARGET">GELAS</div>
+        <div class="ctab" id="water-tab-ml" onclick="waterTabTap('ml')" title="Ganti mode di TARGET">ML</div>
+      </div>
+      <button class="btn btn-xs" onclick="resetWater()" style="opacity:.6;">RESET</button>
+    </div>
+    <!-- GELAS mode -->
+    <div id="water-section-cups">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;">
+        <div>
+          <span style="font-family:var(--mh-font,'Archivo Black',sans-serif);font-weight:700;font-size:28px;color:var(--mh-primary,var(--yellow));" id="water-count">0</span>
+          <span style="font-family:var(--mh-font,'Space Grotesk',sans-serif);font-size:10px;color:var(--mh-muted,var(--sub));"> / 8 gelas</span>
+        </div>
+        <button class="btn btn-xs btn-primary" id="water-add-btn" onclick="wellnessAddCup()">+ GELAS</button>
+      </div>
+      <div class="water-cups" id="water-cups"></div>
+      <div style="font-family:var(--mh-font,'Space Grotesk',sans-serif);font-size:10px;color:var(--mh-muted,var(--sub));margin-top:5px;" id="water-msg"></div>
+    </div>
+    <!-- ML mode -->
+    <div id="water-section-ml" style="display:none;">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:9px;flex-wrap:wrap;">
+        <div>
+          <span style="font-family:var(--mh-font,'Archivo Black',sans-serif);font-weight:700;font-size:28px;color:var(--mh-primary,var(--yellow));" id="water-ml-total">0</span>
+          <span style="font-family:var(--mh-font,'Space Grotesk',sans-serif);font-size:10px;color:var(--mh-muted,var(--sub));"> / <span id="water-ml-target-lbl">2000</span> ml</span>
+        </div>
+      </div>
+      <!-- Progress bar -->
+      <div style="width:100%;height:8px;background:#EEF0F7;border-radius:999px;overflow:hidden;margin-bottom:9px;">
+        <div id="water-ml-bar" style="height:100%;width:0%;background:var(--mh-primary,var(--yellow));border-radius:999px;transition:width .4s;"></div>
+      </div>
+      <!-- Quick add buttons -->
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px;">
+        <button class="btn btn-xs btn-primary" onclick="wellnessAddMl(100)">+100ml</button>
+        <button class="btn btn-xs btn-primary" onclick="wellnessAddMl(200)">+200ml</button>
+        <button class="btn btn-xs btn-primary" onclick="wellnessAddMl(250)">+250ml</button>
+        <button class="btn btn-xs btn-primary" onclick="wellnessAddMl(350)">+350ml</button>
+        <button class="btn btn-xs btn-primary" onclick="wellnessAddMl(500)">+500ml</button>
+      </div>
+      <!-- Custom input -->
+      <div style="display:flex;gap:7px;align-items:center;">
+        <input type="number" id="water-custom-ml" placeholder="ml" min="1" max="2000" step="10"
+          style="flex:1;font-family:var(--mh-font,'Space Grotesk',sans-serif);font-weight:600;font-size:13px;background:#F0F2F8;border:none;border-radius:10px;color:var(--mh-text,var(--text));padding:8px 11px;">
+        <button class="btn btn-xs btn-primary" onclick="wellnessAddCustomMl()">+ TAMBAH</button>
+      </div>
+      <div style="font-family:var(--mh-font,'Space Grotesk',sans-serif);font-size:9px;color:var(--mh-muted,var(--sub));margin-top:5px;" id="water-ml-pct-lbl"></div>
+    </div>
+  </div>
+
+  <!-- SLEEP TRACKER -->
+  <div class="sec-hdr">
+    <div class="sec-title">Sleep Tracker</div>
+    <button class="btn btn-xs" onclick="openSleepTargetModal()" title="Set target tidur">
+      <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      TARGET
+    </button>
+  </div>
+  <!-- Target info strip -->
+  <div id="sleep-target-strip" style="font-family:var(--mh-font,'Space Grotesk',sans-serif);font-size:10px;color:var(--mh-muted,var(--sub));margin-bottom:7px;"></div>
+  <div class="analytics-card" style="margin-bottom:9px;" id="wellness-sleep-input-wrap">
+    <div style="display:flex;gap:7px;align-items:flex-end;flex-wrap:wrap;margin-bottom:9px;">
+      <div class="form-group" style="margin-bottom:0;flex:1;min-width:90px;"><label class="form-label">Tidur</label>
+        <div class="custom-time-trigger" onclick="openTimePicker('sleep-bed')" style="font-size:11px;padding:9px 11px;">
+          <span style="font-size:14px;">🌙</span>
+          <span id="sleep-bed-val" style="font-family:var(--mh-font,'Space Grotesk',sans-serif);font-size:13px;font-weight:700;color:var(--mh-text,var(--text));flex:1;">--:--</span>
+        </div>
+        <input type="hidden" id="sleep-bed" value="">
+      </div>
+      <div class="form-group" style="margin-bottom:0;flex:1;min-width:90px;"><label class="form-label">Bangun</label>
+        <div class="custom-time-trigger" onclick="openTimePicker('sleep-wake')" style="font-size:11px;padding:9px 11px;">
+          <span style="font-size:14px;">☀️</span>
+          <span id="sleep-wake-val" style="font-family:var(--mh-font,'Space Grotesk',sans-serif);font-size:13px;font-weight:700;color:var(--mh-text,var(--text));flex:1;">--:--</span>
+        </div>
+        <input type="hidden" id="sleep-wake" value="">
+      </div>
+      <button class="btn btn-sm btn-primary" onclick="logSleepWellness()" style="flex-shrink:0;">LOG</button>
+    </div>
+  </div>
+  <!-- Sleep history list -->
+  <div class="analytics-card" style="margin-bottom:24px;">
+    <div id="sleep-log-list"></div>
+  </div>
+
+</div></div>
+
+<!-- ══ FOCUS + BONUS TOOLS PAGE ══ -->
+<div class="page" id="page-focus"><div class="page-content">
+  <div id="focus-section-timer">
+  <div class="sec-hdr"><div class="sec-title"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Pomodoro Focus</div></div>
+  <div style="display:flex;gap:5px;margin-bottom:9px;flex-wrap:wrap;">
+    <button class="ambient-btn" data-type="rain" onclick="toggleAmbient('rain')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="16" y1="13" x2="16" y2="21"/><line x1="8" y1="13" x2="8" y2="21"/><line x1="12" y1="15" x2="12" y2="23"/><path d="M20 16.58A5 5 0 0018 7h-1.26A8 8 0 104 15.25"/></svg>
+      RAIN
+    </button>
+    <button class="ambient-btn" data-type="white" onclick="toggleAmbient('white')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 18v-6a9 9 0 0118 0v6"/><path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3z"/><path d="M3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z"/></svg>
+      WHITE NOISE
+    </button>
+    <button class="ambient-btn" data-type="focus" onclick="toggleAmbient('focus')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
+      BINAURAL
+    </button>
+  </div>
+  <div class="focus-card">
+    <div class="focus-mode-label" id="focus-mode-lbl">FOCUS SESSION</div>
+    <div class="focus-ring-wrap">
+      <svg class="focus-ring-svg" width="160" height="160">
+        <circle cx="80" cy="80" r="70" fill="none" stroke="#333" stroke-width="8"/>
+        <circle cx="80" cy="80" r="70" fill="none" stroke="var(--yellow)" stroke-width="8" stroke-dasharray="439.8" stroke-dashoffset="0" id="focus-ring-circle" stroke-linecap="square" style="transition:stroke-dashoffset .9s,stroke .3s;"/>
+      </svg>
+      <div class="focus-ring-text">
+        <div class="focus-timer-display" id="focus-timer">25:00</div>
+        <div class="focus-session-count" id="focus-sessions">0 sessions today</div>
+      </div>
+    </div>
+    <!-- Input durasi bebas: jam, menit, detik -->
+    <div style="display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:11px;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+        <input type="number" id="focus-inp-hours" min="0" max="9" value="0"
+          style="width:44px;text-align:center;font-family:'Archivo Black',sans-serif;font-size:18px;background:var(--surface);border:var(--bo-t);color:var(--text);padding:5px 0;-moz-appearance:textfield;"
+          oninput="this.value=Math.max(0,Math.min(9,parseInt(this.value)||0));applyFocusDurInput()"
+          onblur="this.value=Math.max(0,Math.min(9,parseInt(this.value)||0))">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:7px;color:var(--sub);letter-spacing:1px;">HR</div>
+      </div>
+      <div style="font-family:'Archivo Black',sans-serif;font-size:22px;color:var(--yellow);padding-bottom:14px;">:</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+        <input type="number" id="focus-inp-mins" min="0" max="59" value="25"
+          style="width:44px;text-align:center;font-family:'Archivo Black',sans-serif;font-size:18px;background:var(--surface);border:var(--bo-t);color:var(--text);padding:5px 0;-moz-appearance:textfield;"
+          oninput="this.value=Math.max(0,Math.min(59,parseInt(this.value)||0));applyFocusDurInput()"
+          onblur="this.value=Math.max(0,Math.min(59,parseInt(this.value)||0))">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:7px;color:var(--sub);letter-spacing:1px;">MIN</div>
+      </div>
+      <div style="font-family:'Archivo Black',sans-serif;font-size:22px;color:var(--yellow);padding-bottom:14px;">:</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+        <input type="number" id="focus-inp-secs" min="0" max="59" value="0"
+          style="width:44px;text-align:center;font-family:'Archivo Black',sans-serif;font-size:18px;background:var(--surface);border:var(--bo-t);color:var(--text);padding:5px 0;-moz-appearance:textfield;"
+          oninput="this.value=Math.max(0,Math.min(59,parseInt(this.value)||0));applyFocusDurInput()"
+          onblur="this.value=Math.max(0,Math.min(59,parseInt(this.value)||0))">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:7px;color:var(--sub);letter-spacing:1px;">SEC</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:7px;justify-content:center;">
+      <button class="btn btn-primary" id="focus-start-btn" onclick="toggleFocus()">▶ START</button>
+      <button class="btn btn-sm" onclick="resetFocus()">⏹ RESET</button>
+    </div>
+    <div style="margin-top:9px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:#888;margin-bottom:5px;">LINK TO HABIT</div>
+      <div class="custom-select-trigger" id="focus-habit-trigger" onclick="openFocusHabitPicker()" style="background:#1a1a1a;border-color:#333;font-size:10px;">
+        <span class="cst-icon" id="focus-habit-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span>
+        <span class="cst-label" id="focus-habit-label">— none —</span>
+      </div>
+      <select id="focus-habit-link" style="display:none" onchange="linkFocusHabit(this.value)"><option value="">— none —</option></select>
+    </div>
+  </div>
+
+  </div><!-- /focus-section-timer -->
+</div></div><!-- /page-focus -->
+
+
+
+<!-- DAY DETAIL MODAL (Calendar) -->
+
+
+<!-- ══ NUTRITION PAGE ══ -->
+<div class="page" id="page-nutrition"><div class="page-content">
+
+  <!-- Date filter -->
+  <div class="sec-hdr">
+    <div class="sec-title">Nutrition</div>
+    <div style="display:flex;align-items:center;gap:6px;">
+<div class="oht-datepicker-wrap" id="wrap-nutr-date-filter">
+      <button class="btn btn-sm" onclick="openDatePicker('nutr-date-filter','loadNutrDate')" style="gap:5px;"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg><span id="nutr-date-filter-label">TANGGAL</span></button>
+      <button class="btn btn-sm btn-primary" onclick="loadNutrDate('')">TODAY</button>
+    </div>
+    </div>
+  </div>
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--yellow);margin-bottom:9px;" id="nutr-viewing-date"></div>
+
+  <!-- DAILY TRACKER — target vs consumed (hanya tampil kalau ada data atau hari ini) -->
+  <div id="nutr-daily-tracker" style="margin-bottom:11px;">
+    <!-- rendered by JS -->
+  </div>
+
+  <!-- SCAN AREA (hanya tampil untuk hari ini) -->
+  <div id="nutr-scan-wrap">
+    <div class="sec-hdr"><div class="sec-title">Scan Makanan</div></div>
+    <div class="nutr-scan-card" id="nutr-scan-card">
+      <label class="nutr-upload-zone" id="nutr-upload-zone" for="nutr-img-input">
+        <div class="nutr-upload-inner" id="nutr-upload-inner">
+          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--yellow)" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="1"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--sub);text-align:center;margin-top:8px;line-height:1.6;">TAP UNTUK UPLOAD FOTO<br>ATAU AMBIL FOTO MAKANAN</div>
+        </div>
+        <img id="nutr-preview-img" src="" style="display:none;width:100%;max-height:220px;object-fit:cover;" />
+      </label>
+      <input type="file" id="nutr-img-input" accept="image/*" capture="environment" style="display:none;" onchange="onNutrImgSelected(this)">
+      <button class="btn btn-primary" id="nutr-scan-btn" onclick="doNutrScan()" style="width:100%;margin-top:9px;display:none;">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 6V2h4"/><path d="M1 18v4h4"/><path d="M23 6V2h-4"/><path d="M23 18v4h-4"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+        ANALISA NUTRISI
+      </button>
+    </div>
+    <div id="nutr-result-wrap" style="display:none;margin-top:9px;">
+      <div class="nutr-result-card" id="nutr-result-card"></div>
+      <div style="display:flex;gap:7px;margin-top:9px;">
+        <button class="btn" onclick="clearNutrScan()" style="flex:1;font-size:10px;">✕ BATAL</button>
+        <button class="btn btn-primary" onclick="consumeMeal()" style="flex:2;font-size:11px;">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/></svg>
+          CONSUME
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEAL LOG (riwayat harian) -->
+  <div class="sec-hdr" style="margin-top:11px;"><div class="sec-title">Log Makanan</div></div>
+  <div id="nutr-meal-log" style="display:flex;flex-direction:column;gap:6px;margin-bottom:11px;">
+    <!-- rendered by JS -->
+  </div>
+
+  <!-- Tombol set target -->
+  <button class="btn btn-sm" style="width:100%;justify-content:center;opacity:.7;margin-bottom:24px;" onclick="openNutrTargetModal()">
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    SET TARGET HARIAN
+  </button>
+
+</div></div>
+
+<!-- MODAL: Nutrition Target -->
+<div class="modal-overlay" id="modal-nutr-target" onclick="if(event.target===this)closeModal('modal-nutr-target')">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Target Harian</div><button class="modal-close" onclick="closeModal('modal-nutr-target')">✕</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:9px;">
+      <div class="nutr-setting-row"><label class="nutr-setting-lbl">Kalori (kkal)</label><input type="number" class="nutr-setting-inp" id="nset-kcal" value="2000"></div>
+      <div class="nutr-setting-row"><label class="nutr-setting-lbl">Protein (g)</label><input type="number" class="nutr-setting-inp" id="nset-protein" value="50"></div>
+      <div class="nutr-setting-row"><label class="nutr-setting-lbl">Karbo (g)</label><input type="number" class="nutr-setting-inp" id="nset-carbs" value="300"></div>
+      <div class="nutr-setting-row"><label class="nutr-setting-lbl">Lemak (g)</label><input type="number" class="nutr-setting-inp" id="nset-fat" value="65"></div>
+      <div class="nutr-setting-row"><label class="nutr-setting-lbl">Serat (g)</label><input type="number" class="nutr-setting-inp" id="nset-fiber" value="25"></div>
+      <div class="nutr-setting-row"><label class="nutr-setting-lbl">Gula (g)</label><input type="number" class="nutr-setting-inp" id="nset-sugar" value="50"></div>
+      <div class="nutr-setting-row"><label class="nutr-setting-lbl">Sodium (mg)</label><input type="number" class="nutr-setting-inp" id="nset-sodium" value="2300"></div>
+      <div class="nutr-setting-row"><label class="nutr-setting-lbl">Target Air (ml)</label><input type="number" class="nutr-setting-inp" id="nset-water-ml" value="2000"></div>
+      <button class="btn btn-primary" onclick="saveNutrSettings()" style="width:100%;justify-content:center;margin-top:4px;">SAVE TARGET</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- MODAL: Water Target -->
+<div class="modal-overlay" id="modal-water-target" onclick="if(event.target===this)closeModal('modal-water-target')">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Target Air Harian</div><button class="modal-close" onclick="closeModal('modal-water-target')">✕</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);margin-bottom:6px;">MODE TRACKING</div>
+        <div class="freq-row">
+          <div class="freq-btn sel" id="wt-mode-cups" onclick="setWaterTargetMode('cups',this)">GELAS</div>
+          <div class="freq-btn" id="wt-mode-ml" onclick="setWaterTargetMode('ml',this)">ML</div>
+        </div>
+      </div>
+      <div id="wt-cups-row">
+        <label style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text);display:block;margin-bottom:5px;">Target Gelas per Hari</label>
+        <input type="number" id="wt-cups-val" min="1" max="20" value="8"
+          style="width:100%;font-family:'Archivo Black',sans-serif;font-size:16px;background:var(--bg);border:var(--bo-t);color:var(--text);padding:8px 11px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);margin-top:4px;">Default: 8 gelas (±2L)</div>
+      </div>
+      <div id="wt-ml-row" style="display:none;">
+        <label style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text);display:block;margin-bottom:5px;">Target Air per Hari (ml)</label>
+        <input type="number" id="wt-ml-val" min="500" max="5000" step="100" value="2000"
+          style="width:100%;font-family:'Archivo Black',sans-serif;font-size:16px;background:var(--bg);border:var(--bo-t);color:var(--text);padding:8px 11px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);margin-top:4px;">Contoh: 2000ml = 2 liter, 2500ml = 2.5 liter</div>
+      </div>
+      <button class="btn btn-primary" onclick="saveWaterTarget()" style="width:100%;justify-content:center;">SAVE TARGET</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Sleep Target -->
+<div class="modal-overlay" id="modal-sleep-target" onclick="if(event.target===this)closeModal('modal-sleep-target')">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Target Tidur Harian</div><button class="modal-close" onclick="closeModal('modal-sleep-target')">✕</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <label style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text);display:block;margin-bottom:5px;">Minimal Jam Tidur per Malam</label>
+        <div style="display:flex;align-items:center;gap:9px;">
+          <input type="number" id="sleep-target-hours" min="4" max="12" step="0.5" value="7"
+            style="flex:1;font-family:'Archivo Black',sans-serif;font-size:22px;background:var(--bg);border:var(--bo-t);color:var(--text);padding:8px 11px;">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--sub);">jam</span>
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);margin-top:4px;">WHO rekomendasikan 7-9 jam untuk dewasa</div>
+      </div>
+      <button class="btn btn-primary" onclick="saveSleepTarget()" style="width:100%;justify-content:center;">SAVE TARGET</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ JADWAL PAGE ══ -->
+<div class="page" id="page-jadwal"><div class="page-content">
+  <div class="sec-hdr">
+    <div class="sec-title">Jadwal & Pengingat</div>
+    <button class="btn btn-sm btn-primary" onclick="openAddJadwalModal()">+ TAMBAH</button>
+  </div>
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);margin-bottom:11px;padding:7px;border:1px dashed var(--bc);">
+    ⚠️ Notifikasi browser diperlukan. Izinkan notifikasi saat pertama kali diminta.
+  </div>
+  <div id="jadwal-list"></div>
+</div></div>
+
+<!-- MODAL: Add/Edit Jadwal -->
+<div class="modal-overlay" id="modal-jadwal" onclick="if(event.target===this)closeModal('modal-jadwal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="jadwal-modal-title">TAMBAH JADWAL</div>
+      <button class="modal-close" onclick="closeModal('modal-jadwal')">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:11px;">
+      <div>
+        <label style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);display:block;margin-bottom:5px;">NAMA JADWAL / KATEGORI *</label>
+        <input type="text" id="jadwal-inp-name" class="form-input" placeholder="mis: Minum Air, Belajar, Tidur...">
+      </div>
+      <div>
+        <label style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);display:block;margin-bottom:5px;">ICON</label>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;" id="jadwal-emoji-picker">
+          💧🎯📚💪😴🍎🧘‍♀️💊🏃‍♂️💼📝🎵🌿☕
+        </div>
+        <input type="hidden" id="jadwal-inp-emoji" value="💧">
+      </div>
+      <div>
+        <label style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);display:block;margin-bottom:5px;">WARNA</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;" id="jadwal-color-picker"></div>
+        <input type="hidden" id="jadwal-inp-color" value="#FFE600">
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
+          <label style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);">WAKTU PENGINGAT</label>
+          <button class="btn btn-xs btn-primary" onclick="addJadwalTimeSlot()">+ WAKTU</button>
+        </div>
+        <div id="jadwal-times-list" style="display:flex;flex-direction:column;gap:5px;"></div>
+      </div>
+      <div>
+        <label style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);display:block;margin-bottom:5px;">HARI AKTIF</label>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;" id="jadwal-days-picker">
+          <div class="jhb-btn sel" data-day="0" onclick="this.classList.toggle('sel')">Min</div>
+          <div class="jhb-btn sel" data-day="1" onclick="this.classList.toggle('sel')">Sen</div>
+          <div class="jhb-btn sel" data-day="2" onclick="this.classList.toggle('sel')">Sel</div>
+          <div class="jhb-btn sel" data-day="3" onclick="this.classList.toggle('sel')">Rab</div>
+          <div class="jhb-btn sel" data-day="4" onclick="this.classList.toggle('sel')">Kam</div>
+          <div class="jhb-btn sel" data-day="5" onclick="this.classList.toggle('sel')">Jum</div>
+          <div class="jhb-btn sel" data-day="6" onclick="this.classList.toggle('sel')">Sab</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="saveJadwal()" style="width:100%;justify-content:center;margin-top:4px;">SIMPAN JADWAL</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FRIENDS PAGE ══ -->
+<div class="page" id="page-friends"><div class="page-content">
+  <!-- Auth state: not logged in -->
+  <div id="friends-auth-section">
+    <div class="sec-hdr"><div class="sec-title">👥 Teman</div></div>
+    <div id="friends-login-form">
+      <div style="background:var(--surface);border:var(--bo);padding:24px;text-align:center;">
+        <div style="margin-bottom:11px;display:flex;justify-content:center;"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="var(--yellow)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="1.5"/><path d="M7.5 11V7.5a4.5 4.5 0 019 0V11"/><circle cx="12" cy="15.5" r="1.6" fill="var(--yellow)" stroke="none"/><line x1="12" y1="17.1" x2="12" y2="18.6"/></svg></div>
+        <div style="font-family:'Archivo Black',sans-serif;font-size:13px;margin-bottom:7px;">Belum Login</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);margin-bottom:14px;line-height:1.6;">
+          Login dulu di halaman Setelan untuk menggunakan fitur teman.
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="navigateMore('settings')">
+          Pergi ke Setelan →
+        </button>
+        <div id="fb-auth-error" style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:#f44;margin-top:7px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Logged in state -->
+  <div id="friends-main-section" style="display:none;">
+
+    <!-- View: Friends List (default) -->
+    <div id="friends-view-list">
+      <div class="sec-hdr">
+        <div style="display:flex;align-items:center;gap:9px;">
+          <div class="friend-online-dot active"></div>
+          <div class="sec-title" id="fb-display-name">-</div>
+        </div>
+        <button class="btn btn-xs btn-primary" onclick="showFriendsView('search')">🔍 Cari</button>
+      </div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);margin-bottom:11px;">
+        ID kamu: <strong id="fb-my-id" style="color:var(--yellow);cursor:pointer;letter-spacing:2px;" onclick="copyMyId()"></strong>
+        <span style="font-size:7px;opacity:.5;"> (tap copy)</span>
+      </div>
+      <div id="friends-list"></div>
+      <div class="chat-empty" style="display:none;" id="friends-empty">Belum ada teman. Tap 🔍 Cari untuk cari teman.</div>
+    </div>
+
+    <!-- View: Search -->
+    <div id="friends-view-search" style="display:none;">
+      <div class="sec-hdr">
+        <button class="btn btn-xs" onclick="showFriendsView('list')">‹ Kembali</button>
+        <div class="sec-title">Cari Teman</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <input type="text" id="fb-search-input" class="form-input"
+          placeholder="Masukkan ID (123456) atau username..."
+          style="width:100%;margin-bottom:7px;font-size:13px;"
+          oninput="fbSearchFriend(this.value)">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);">
+          Cari dengan ID 6 angka atau nama pengguna
+        </div>
+      </div>
+      <div id="friends-search-result"></div>
+    </div>
+
+    <!-- View: Chat -->
+    <div id="friends-view-chat" style="display:none;">
+      <div class="sec-hdr">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <button class="btn btn-xs" onclick="showFriendsView('list')">‹</button>
+          <div class="friend-online-dot" id="chat-friend-status"></div>
+          <div class="sec-title" id="chat-friend-name">-</div>
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:7px;color:var(--sub);" id="chat-friend-xp"></div>
+      </div>
+      <div id="chat-messages" class="chat-messages-box"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-input-text" class="form-input" placeholder="Ketik pesan..."
+          style="flex:1;" maxlength="200" onkeydown="if(event.key==='Enter')sendChatMsg()">
+        <button class="btn btn-primary" onclick="sendChatMsg()">KIRIM</button>
+      </div>
+    </div>
+
+  </div>
+</div></div>
+
+<!-- ══ PROFILE PAGE ══ -->
+<div class="page" id="page-profile"><div class="page-content" id="profile-page-content">
+  <!-- View mode (default) -->
+  <div id="profile-view-mode">
+    <div class="sec-hdr">
+      <div class="sec-title">Profil</div>
+      <button class="btn btn-xs" onclick="setProfileMode('edit')">✏️ Edit</button>
+    </div>
+    <div id="profile-canvas-wrap"></div>
+
+    <!-- Visitors (ID sudah pindah ke kartu identitas di atas) -->
+    <div id="profile-social-section" style="margin-top:11px;padding-bottom:24px;"></div>
+  </div>
+  <!-- Edit mode (hidden by default) -->
+  <div id="profile-edit-mode" style="display:none;">
+    <div class="sec-hdr">
+      <div class="sec-title">Edit Penampilan</div>
+      <button class="btn btn-xs btn-primary" onclick="setProfileMode('view')">✓ Selesai</button>
+    </div>
+    <div id="profile-customizer"></div>
+  </div>
+</div></div>
+
+<!-- ══ JOURNAL PAGE ══ -->
+<div class="page" id="page-journal"><div class="page-content">
+
+  <!-- Header + date filter -->
+  <div class="sec-hdr">
+    <div class="sec-title">Journal</div>
+<div class="oht-datepicker-wrap" id="wrap-journal-date-filter">
+      <button class="btn btn-sm" onclick="openDatePicker('journal-date-filter','loadJournalDate')" style="gap:5px;"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg><span id="journal-date-filter-label">TANGGAL</span></button>
+      <button class="btn btn-sm btn-primary" onclick="loadJournalDate('')">TODAY</button>
+    </div>
+  </div>
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--yellow);margin-bottom:11px;" id="journal-viewing-date"></div>
+
+  <!-- Mood & Energy check-in (always for today) -->
+  <div class="mood-checkin" id="mood-checkin">
+    <div class="mood-saved-badge" id="mood-saved-badge" style="display:none">✓ TERSIMPAN</div>
+    <div class="mood-checkin-title">Mood &amp; Energi <span id="mood-label">Hari Ini</span></div>
+    <div class="mood-label" style="margin-bottom:5px;">Bagaimana perasaanmu?</div>
+    <div class="mood-btns">
+      <div class="mood-btn" onclick="setMood(1,this)">😫</div>
+      <div class="mood-btn" onclick="setMood(2,this)">😕</div>
+      <div class="mood-btn" onclick="setMood(3,this)">😐</div>
+      <div class="mood-btn" onclick="setMood(4,this)">😊</div>
+      <div class="mood-btn" onclick="setMood(5,this)">🔥</div>
+    </div>
+    <div class="mood-energy">
+      <div class="energy-label">Energi</div>
+      <div class="energy-dots" id="energy-dots">
+        <div class="edot" onclick="setEnergy(1)"></div><div class="edot" onclick="setEnergy(2)"></div>
+        <div class="edot" onclick="setEnergy(3)"></div><div class="edot" onclick="setEnergy(4)"></div>
+        <div class="edot" onclick="setEnergy(5)"></div>
+      </div>
+    </div>
+  </div>
+  <div id="mood-history-strip" style="margin-bottom:11px;"></div>
+
+  <!-- Journal container — click area to start editing -->
+  <div class="journal-main-card" id="journal-main-card" onclick="startJournalEdit()">
+    <div class="journal-main-text" id="journal-main-text">
+      <span style="color:var(--sub);font-style:italic;font-size:11px;">Tap untuk menulis jurnal hari ini...</span>
+    </div>
+    <textarea id="journal-main-textarea" class="journal-main-textarea" style="display:none;"
+      placeholder="Tulis apapun tentang hari ini..." rows="12"
+      onclick="event.stopPropagation()"></textarea>
+  </div>
+
+  <!-- Save/Batal DI LUAR card -->
+  <div class="journal-main-actions" id="journal-main-actions" style="display:none;margin-top:9px;">
+    <button class="btn btn-primary" id="journal-save-btn" onclick="saveJournalMain()">
+      <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      SAVE
+    </button>
+    <button class="btn" onclick="cancelJournalEdit()">BATAL</button>
+  </div>
+
+  <!-- Previous entries -->
+  <div id="journal-prev-entries"></div>
+
+</div></div>
+
+</div><!-- /main-scroll -->
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav" style="gap:0;padding:0 2px;">
+  <div class="bnav-item active" id="bnav-habits" onclick="navigate('habits')">
+    <svg class="bnav-svg" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="3"/><rect x="3" y="10" width="18" height="3"/><rect x="3" y="16" width="12" height="3"/><polyline points="17 17 20 20 23 15"/></svg>
+    <div class="bnav-lbl">Habits</div>
+  </div>
+  <div class="bnav-item" id="bnav-wellness" onclick="navigate('wellness')">
+    <svg class="bnav-svg" viewBox="0 0 24 24"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402C1 3.736 3.791 2 6.5 2c1.85 0 3.674.788 5.5 2.528C13.826 2.788 15.65 2 17.5 2 20.209 2 23 3.736 23 7.191c0 4.105-5.37 8.863-11 14.402z"/></svg>
+    <div class="bnav-lbl">Wellness</div>
+  </div>
+  <div class="bnav-item" id="bnav-friends" onclick="navigate('friends')">
+    <svg class="bnav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+    <div class="bnav-lbl">Teman</div>
+  </div>
+  <div class="bnav-item" id="bnav-more" onclick="toggleMoreMenu()">
+    <svg class="bnav-svg" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/></svg>
+    <div class="bnav-lbl">More</div>
+  </div>
+
+  <!-- MORE MENU -->
+  <div class="more-menu-overlay" id="more-menu-overlay" onclick="closeMoreMenu()"></div>
+  <div class="more-menu" id="more-menu">
+    <div class="more-menu-header">
+      <div style="font-family:'Archivo Black',sans-serif;font-size:12px;color:var(--yellow);">MENU</div>
+      <div class="more-menu-close" onclick="closeMoreMenu()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </div>
+    </div>
+    <div class="more-menu-grid">
+      <div class="mm-item" onclick="navigateMore('jadwal')">
+        <div class="mm-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="13" x2="8" y2="13"/><line x1="12" y1="13" x2="12" y2="13"/><line x1="16" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="8" y2="17"/><line x1="12" y1="17" x2="12" y2="17"/></svg></div>
+        <div class="mm-lbl">Jadwal</div>
+      </div>
+      <div class="mm-item" onclick="navigateMore('streaks')">
+        <div class="mm-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 01-7 7"/></svg></div>
+        <div class="mm-lbl">Streaks</div>
+      </div>
+      <div class="mm-item" onclick="navigateMore('report')">
+        <div class="mm-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+        <div class="mm-lbl">Report</div>
+      </div>
+      <div class="mm-item" onclick="navigateMore('journal')">
+        <div class="mm-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+        <div class="mm-lbl">Journal</div>
+      </div>
+      <div class="mm-item" onclick="navigateMore('nutrition')">
+        <div class="mm-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg></div>
+        <div class="mm-lbl">Nutrition</div>
+      </div>
+      <div class="mm-item" onclick="navigateMore('settings')">
+        <div class="mm-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
+        <div class="mm-lbl">Settings</div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- NAVBAR TOGGLE BUTTON -->
+<button id="nav-toggle-btn" onclick="toggleNavBar()">
+  <svg id="nav-toggle-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--black)" stroke-width="3" stroke-linecap="square"><polyline points="6 9 12 15 18 9"/></svg>
+</button>
+
+
+
+<!-- MODAL: ADD/EDIT HABIT -->
+<div class="modal-overlay" id="modal-add" onclick="if(event.target===this)closeModal('modal-add')">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="modal-title">ADD NEW HABIT</div><div class="modal-close" onclick="closeModal('modal-add')" style="font-size:14px;font-weight:900;line-height:1;">×</div></div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id">
+      <div class="form-group"><label class="form-label">Habit Name *</label><input type="text" class="form-input" id="inp-name" placeholder="e.g. Morning Run, Read 30 min..."></div>
+      <div class="form-group"><label class="form-label">Icon</label><div class="emoji-row" id="emoji-picker"></div><input type="hidden" id="sel-emoji" value="star"></div>
+
+      <div class="form-group"><label class="form-label">Color</label><div class="color-row" id="color-picker"></div><input type="hidden" id="sel-color" value="#FFE600"></div>
+      <div class="form-group"><label class="form-label">Difficulty</label>
+  <div style="display:flex;gap:5px;flex-wrap:wrap;">
+    <div class="freq-btn" onclick="selDifficulty(this,'easy')" title="Easy = 5 XP">◎ EASY</div>
+    <div class="freq-btn sel" onclick="selDifficulty(this,'medium')" title="Medium = 10 XP">◉ MEDIUM</div>
+    <div class="freq-btn" onclick="selDifficulty(this,'hard')" title="Hard = 20 XP">⬤ HARD</div>
+    <div class="freq-btn" onclick="selDifficulty(this,'epic')" title="Epic = 35 XP">★ EPIC</div>
+  </div>
+  <input type="hidden" id="inp-difficulty" value="medium">
+  <div id="diff-desc" style="font-size:9px;color:var(--sub);margin-top:3px;">Balanced challenge. 10 XP per completion.</div>
+</div>
+<div class="form-group"><label class="form-label">Frequency</label><div class="freq-row"><div class="freq-btn sel" onclick="selFreq(this,'daily')" title="Every day">DAILY</div><div class="freq-btn" onclick="selFreq(this,'weekly')" title="Once per week">WEEKLY</div><div class="freq-btn" onclick="selFreq(this,'monthly')" title="Once per month">MONTHLY</div></div><div id="freq-desc" style="font-size:9px;color:var(--sub);margin-top:3px;">Every single day — no excuses.</div><input type="hidden" id="inp-freq" value="daily"></div>
+
+      <div class="form-group"><label class="form-label">Target (times per session)</label><input type="number" class="form-input" id="inp-target" min="1" value="1"></div>
+
+      <div class="form-group"><label class="form-label">Scheduled Time (optional)</label>
+        <div class="custom-time-trigger" onclick="openTimePicker('inp-time')">
+          <span class="ctt-ico">⏰</span><span class="ctt-val" id="time-trigger-val">Tap to set time</span>
+        </div>
+        <input type="hidden" id="inp-time" value="">
+      </div>
+
+      <div class="form-group" id="prog-difficulty-group"><label class="form-label">Difficulty Curve</label>
+        <div class="custom-select-trigger" id="trigger-prog" onclick="openCustomSelect('prog')">
+          <span class="cst-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+          <span class="cst-label">None</span>
+        </div>
+        <input type="hidden" id="inp-prog" value="none">
+      </div>
+
+      <div class="form-group"><label class="form-label">Notes (optional)</label><textarea class="form-textarea" id="inp-notes" placeholder="Extra details..."></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('modal-add')">CANCEL</button><button class="btn" onclick="saveHabitAndAddAnother()" style="font-size:9px;">+ ANOTHER</button><button class="btn btn-primary" onclick="saveHabit()">✓ SAVE</button></div>
+  </div>
+</div>
+
+<!-- MODAL: LOGIN -->
+<!-- ══ AUTH PAGE (halaman login/daftar terpisah, bukan modal) ══ -->
+<div id="auth-page">
+  <div class="auth-page-scan"></div>
+  <div class="auth-page-corner tl"></div>
+  <div class="auth-page-corner tr"></div>
+  <div class="auth-page-corner bl"></div>
+  <div class="auth-page-corner br"></div>
+  <div class="auth-page-bg">
+
+    <!-- Form panel (left on desktop) — hidden until first showcase cycle finishes -->
+    <div class="auth-card" id="auth-card">
+      <div class="auth-card-panel">
+        <div class="auth-tabs2">
+          <button class="auth-tab2 active" id="auth-tab2-login" onclick="setAuthMode('login')">MASUK</button>
+          <button class="auth-tab2" id="auth-tab2-register" onclick="setAuthMode('register')">DAFTAR</button>
+        </div>
+
+        <div class="form-group"><label class="form-label">USERNAME</label><input type="text" id="fb-username" class="form-input" placeholder="huruf/angka" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')"></div>
+        <div class="form-group"><label class="form-label">PASSWORD</label><input type="password" id="fb-password" class="form-input" placeholder="min 6 karakter" onkeydown="if(event.key==='Enter')authSubmit2()"></div>
+
+        <button class="btn btn-primary" id="auth2-submit-btn" style="width:100%;justify-content:center;" onclick="authSubmit2()">MASUK</button>
+        <div id="fb-auth-error" style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:#f44;margin-top:9px;text-align:center;"></div>
+
+        <div class="auth-divider"><div class="auth-divider-line"></div><div class="auth-divider-text">atau</div><div class="auth-divider-line"></div></div>
+
+        <button class="auth-google-btn" onclick="fbLoginGoogle()">
+          <svg width="16" height="16" viewBox="0 0 48 48">
+            <path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 32.6 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 20-8.9 20-20 0-1.3-.1-2.7-.4-4z"/>
+            <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+            <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.4 26.7 36 24 36c-5.2 0-9.6-3.3-11.2-8l-6.5 5C9.6 39.6 16.3 44 24 44z"/>
+            <path fill="#1976D2" d="M43.6 20H24v8h11.3c-.8 2.4-2.4 4.4-4.4 5.8l6.2 5.2C40.5 36.2 44 30.6 44 24c0-1.3-.1-2.7-.4-4z"/>
+          </svg>
+          Lanjutkan dengan Google
+        </button>
+      </div>
+
+      <div class="auth-footer-note">Data tersimpan aman di cloud · Sinkron antar perangkat</div>
+    </div>
+
+    <!-- Animated showcase (right on desktop, looping continuously) -->
+    <div class="auth-showcase">
+      <div class="auth-showcase-inner">
+        <div class="auth-typewriter"><span id="auth-typewriter-text"></span></div>
+
+        <div class="auth-showcase-logo" id="auth-showcase-logo">
+          <svg class="auth-showcase-icon" viewBox="0 0 120 120" width="88" height="88">
+            <rect class="auth-icon-rect" style="transition-delay:0s;" x="0" y="0" width="120" height="120" fill="#0a0a0a"/>
+            <rect class="auth-icon-rect" style="transition-delay:.05s;" x="0" y="0" width="120" height="28" fill="var(--yellow,#FFE600)"/>
+            <rect class="auth-icon-rect" style="transition-delay:.09s;" x="28" y="0" width="8" height="14" fill="#0a0a0a"/>
+            <rect class="auth-icon-rect" style="transition-delay:.09s;" x="84" y="0" width="8" height="14" fill="#0a0a0a"/>
+            <rect class="auth-icon-rect" style="transition-delay:.16s;" x="10" y="38" width="26" height="22" fill="#222"/>
+            <rect class="auth-icon-rect" style="transition-delay:.20s;" x="47" y="38" width="26" height="22" fill="#222"/>
+            <rect class="auth-icon-rect" style="transition-delay:.24s;" x="84" y="38" width="26" height="22" fill="var(--yellow,#FFE600)"/>
+            <rect class="auth-icon-rect" style="transition-delay:.28s;" x="10" y="68" width="26" height="22" fill="var(--yellow,#FFE600)"/>
+            <rect class="auth-icon-rect" style="transition-delay:.32s;" x="47" y="68" width="26" height="22" fill="var(--yellow,#FFE600)"/>
+            <rect class="auth-icon-rect" style="transition-delay:.36s;" x="84" y="68" width="26" height="22" fill="var(--yellow,#FFE600)"/>
+            <rect class="auth-icon-rect" style="transition-delay:.40s;" x="10" y="98" width="26" height="18" fill="var(--yellow,#FFE600)"/>
+            <rect class="auth-icon-rect" style="transition-delay:.44s;" x="47" y="98" width="26" height="18" fill="#FF6B00"/>
+            <rect class="auth-icon-rect" style="transition-delay:.48s;" x="84" y="98" width="26" height="18" fill="#333"/>
+          </svg>
+        </div>
+
+        <div class="auth-showcase-title"><span id="auth-showcase-title-text"></span></div>
+        <div class="auth-showcase-sub"><span id="auth-showcase-sub-text"></span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL: FREEZE -->
+<div class="modal-overlay" id="modal-freeze" onclick="if(event.target===this)closeModal('modal-freeze')">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 7l-5 5-5-5"/><path d="M17 17l-5-5-5 5"/><path d="M2 12l5-2.5L2 7"/><path d="M22 12l-5 2.5L22 17"/></svg> FREEZE INVENTORY</div><div class="modal-close" onclick="closeModal('modal-freeze')">✕</div></div>
+    <div class="modal-body">
+      <div class="freeze-inventory"><div class="freeze-big-count" id="freeze-big-count">0</div><div><div class="fi-title">Streak Freezes</div><div class="fi-sub">Auto-protects streaks on missed days.<br>Earn via missions → Streaks tab.</div></div></div>
+      <div class="freeze-card"><div class="freeze-card-title">How it works</div><div class="freeze-card-desc">When you miss habits, one freeze is auto-consumed to protect ALL your streaks for that day. Stack freezes before vacations.</div></div>
+      <div style="font-family:'Archivo Black',sans-serif;font-size:10px;text-transform:uppercase;margin-bottom:7px;padding-bottom:5px;border-bottom:var(--bo);">FREEZE LOG</div>
+      <div id="freeze-log-list"></div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('modal-freeze')">CLOSE</button></div>
+  </div>
+</div>
+
+<!-- MODAL: DNA IMPORT -->
+<div class="modal-overlay" id="modal-dna-import" onclick="if(event.target===this)closeModal('modal-dna-import')">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2c4 0 8 2 8 6s-4 6-4 10 4 4 8 4"/><path d="M22 22c-4 0-8-2-8-6s4-6 4-10-4-4-8-4"/></svg> IMPORT HABIT DNA</div><div class="modal-close" onclick="closeModal('modal-dna-import')">✕</div></div>
+    <div class="modal-body">
+      <p style="font-size:11px;color:var(--muted);margin-bottom:11px;">Paste a Habit DNA JSON below, or upload the .json file to load someone's habit blueprint.</p>
+      <div class="form-group"><label class="form-label">Paste DNA JSON</label><textarea class="form-textarea" id="dna-paste-input" placeholder='{"version":"oht-dna-v1","habits":[...]}' style="min-height:110px;font-size:10px;font-family:monospace;"></textarea></div>
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:11px;"><div style="flex:1;height:1px;background:var(--bc);opacity:.3;"></div><span style="font-size:10px;color:var(--sub);">OR</span><div style="flex:1;height:1px;background:var(--bc);opacity:.3;"></div></div>
+      <button class="btn btn-sm" onclick="dnaFileImport()">📂 UPLOAD .JSON FILE</button>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('modal-dna-import')">CANCEL</button><button class="btn btn-cyan" onclick="applyDNAImport()">🧬 LOAD HABITS</button></div>
+  </div>
+</div>
+
+<!-- WEEKLY REVIEW -->
+<div class="review-overlay" id="review-overlay">
+  <div class="review-card">
+    <div class="review-header"><div class="review-title">📋 WEEKLY REVIEW</div><div class="review-sub" id="review-week-label">Week of ...</div></div>
+    <div class="review-body">
+      <div class="review-stat-row" id="review-stats"></div>
+      <div class="review-question"><div class="rq-label">🏆 What went well?</div><textarea class="form-textarea" id="review-win" placeholder="I consistently did..."></textarea></div>
+      <div class="review-question"><div class="rq-label">⚠️ What was hard?</div><textarea class="form-textarea" id="review-hard" placeholder="I struggled with..."></textarea></div>
+      <div class="review-question"><div class="rq-label">🎯 What to change?</div><textarea class="form-textarea" id="review-change" placeholder="Next week I will..."></textarea></div>
+      <div id="review-ai-result" style="display:none;background:#1a1a1a;border:1.5px solid var(--purple);padding:10px;margin-top:10px;font-size:11px;color:#ddd;line-height:1.6;"></div>
+    </div>
+    <div class="review-footer">
+      <button class="btn" onclick="closeReview()">SKIP</button>
+      <button class="btn btn-purple" onclick="getAIReviewInsight()">🦁 AI INSIGHT</button>
+      <button class="btn btn-primary" onclick="saveReview()">✓ SAVE</button>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOM CONFIRM DIALOG -->
+<div class="confirm-overlay" id="confirm-dialog">
+  <div class="confirm-box">
+    <div class="confirm-header"><div class="confirm-icon">🗑</div><div class="confirm-title">DELETE HABIT</div></div>
+    <div class="confirm-body">
+      <div class="confirm-msg">Are you sure you want to delete</div>
+      <div class="confirm-name" id="confirm-habit-name">Habit Name</div>
+      <div class="confirm-warning">⚠ This will also delete all history and streak data. Cannot be undone.</div>
+    </div>
+    <div class="confirm-footer">
+      <button class="btn" onclick="closeConfirm()">CANCEL</button>
+      <button class="btn btn-danger" id="confirm-ok-btn" onclick="executeDelete()"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg> DELETE</button>
+    </div>
+  </div>
+</div>
+
+<!-- ONBOARDING -->
+<div class="onboard-overlay" id="onboarding">
+  <div class="onboard-step active" id="ob-step-0">
+    <div class="onboard-icon"><svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="var(--yellow)" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="8" r="5"/><path d="M20 21c0-4-3.6-7-8-7s-8 3-8 7"/><path d="M6 6c-2-1-3-2-3-3s1-2 3-1"/><path d="M18 6c2-1 3-2 3-3s-1-2-3-1"/></svg></div>
+    <div class="onboard-title"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--yellow)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v1M12 20v1M4.22 4.22l.7.7M19.07 19.07l.71.71M1 12h2M21 12h2M4.22 19.78l.7-.7M19.07 4.93l.71-.71"/><circle cx="12" cy="12" r="4"/></svg> WELCOME TO OHT</div>
+    <div class="onboard-sub">Track habits, build streaks, get AI coaching — crafted by Orias.</div>
+    <div class="onboard-dots"><div class="onboard-dot active"></div><div class="onboard-dot"></div><div class="onboard-dot"></div></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;font-size:13px;padding:11px;" onclick="obNext(1)">LET'S GO →</button>
+  </div>
+  <div class="onboard-step" id="ob-step-1">
+    <div class="onboard-icon"><svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="var(--yellow)" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="8" r="5"/><path d="M20 21c0-4-3.6-7-8-7s-8 3-8 7"/></svg></div>
+    <div class="onboard-title">WHAT'S YOUR NAME?</div>
+    <div class="onboard-sub">Shows on your profile and share cards.</div>
+    <input type="text" class="onboard-name-input" id="ob-name-input" placeholder="YOUR NAME" maxlength="20">
+    <div class="onboard-dots"><div class="onboard-dot"></div><div class="onboard-dot active"></div><div class="onboard-dot"></div></div>
+    <div style="display:flex;gap:7px;"><button class="btn" onclick="obNext(0)" style="padding:11px 16px;">← BACK</button><button class="btn btn-primary" style="flex:1;justify-content:center;font-size:13px;padding:11px;" onclick="obNext(2)">NEXT →</button></div>
+  </div>
+  <div class="onboard-step" id="ob-step-2">
+    <div class="onboard-icon"><svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 7l-5 5-5-5"/><path d="M17 17l-5-5-5 5"/><path d="M2 12l5-2.5L2 7"/><path d="M22 12l-5 2.5L22 17"/></svg></div>
+    <div class="onboard-title">STREAK FREEZE SYSTEM</div>
+    <div class="onboard-sub">Miss a day? A Freeze auto-protects your streak. Earn freezes by completing missions. Starting gift:</div>
+    <div style="font-family:'Archivo Black',sans-serif;font-size:38px;color:var(--cyan);text-align:center;margin:12px 0;">3 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 7l-5 5-5-5"/><path d="M17 17l-5-5-5 5"/><path d="M2 12l5-2.5L2 7"/><path d="M22 12l-5 2.5L22 17"/></svg></div>
+    <div class="onboard-dots"><div class="onboard-dot"></div><div class="onboard-dot"></div><div class="onboard-dot active"></div></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;font-size:13px;padding:11px;" onclick="obFinish()">START TRACKING →</button>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+
+<!-- Day Detail Overlay -->
+<div class="day-detail-overlay" id="day-detail-overlay" onclick="if(event.target===this)closeDayDetail()">
+  <div class="day-detail-panel">
+    <div class="modal-header"><div class="modal-title" id="day-detail-title">DATE</div><div class="modal-close" onclick="closeDayDetail()">✕</div></div>
+    <div class="modal-body" id="day-detail-body"></div>
+  </div>
+</div>
+
+<!-- ══ MODAL: ADD GOAL ══ -->
+<div class="modal-overlay" id="modal-goal" onclick="if(event.target===this)closeModal('modal-goal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" style="display:flex;align-items:center;gap:7px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--yellow)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> SET A GOAL</div>
+      <div class="modal-close" onclick="closeModal('modal-goal')">×</div>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Goal Name</label>
+        <input type="text" class="form-input" id="goal-inp-name" placeholder="e.g. Run a 5K, Read 12 books...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Target Date (optional)</label>
+        <input type="date" class="form-input" id="goal-inp-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Link Habits</label>
+        <div id="goal-habit-checklist" style="max-height:200px;overflow-y:auto;border:var(--bo);padding:7px;background:var(--bg);"></div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px;padding:10px;font-size:12px;" onclick="saveGoal()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" style="flex-shrink:0;vertical-align:middle;"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> CREATE GOAL</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: ADD RITUAL ══ -->
+<div class="modal-overlay" id="modal-ritual" onclick="if(event.target===this)closeModal('modal-ritual')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" style="display:flex;align-items:center;gap:7px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--yellow)" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> CREATE RITUAL</div>
+      <div class="modal-close" onclick="closeModal('modal-ritual')">×</div>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Ritual Name</label>
+        <input type="text" class="form-input" id="ritual-inp-name" placeholder="e.g. Morning Power Routine...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Time of Day</label>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;">
+          <button class="btn btn-sm freq-btn sel" onclick="selRitualTime(this,'morning')">🌅 Morning</button>
+          <button class="btn btn-sm freq-btn" onclick="selRitualTime(this,'afternoon')">☀️ Afternoon</button>
+          <button class="btn btn-sm freq-btn" onclick="selRitualTime(this,'evening')">🌙 Evening</button>
+          <button class="btn btn-sm freq-btn" onclick="selRitualTime(this,'anytime')">⚡ Anytime</button>
+        </div>
+        <input type="hidden" id="ritual-inp-time" value="morning">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Select Habits (min 1)</label>
+        <div id="ritual-habit-checklist" style="max-height:200px;overflow-y:auto;border:var(--bo);padding:7px;background:var(--bg);"></div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px;padding:10px;font-size:12px;" onclick="saveRitual()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" style="flex-shrink:0;vertical-align:middle;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> CREATE RITUAL</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: BACKFILL ══ -->
+<div class="modal-overlay" id="modal-backfill" onclick="if(event.target===this)closeModal('modal-backfill')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" style="display:flex;align-items:center;gap:7px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--yellow)" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg> BACKFILL PAST DAYS</div>
+      <div class="modal-close" onclick="closeModal('modal-backfill')">×</div>
+    </div>
+    <div class="modal-body">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);margin-bottom:9px;text-transform:uppercase;letter-spacing:.5px;">Check habits you completed but forgot to track</div>
+      <div id="backfill-content" style="max-height:55vh;overflow-y:auto;"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:9px;padding:10px;font-size:12px;" onclick="saveBackfill()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" style="flex-shrink:0;vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg> SAVE BACKFILL</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: TIME CAPSULE ══ -->
+<div class="modal-overlay" id="modal-capsule" onclick="if(event.target===this)closeModal('modal-capsule')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" style="display:flex;align-items:center;gap:7px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--yellow)" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> TIME CAPSULE</div>
+      <div class="modal-close" onclick="closeModal('modal-capsule')">×</div>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Dear Future Me...</label>
+        <textarea class="form-input" id="capsule-letter" rows="5" placeholder="Write a letter to your future self. What are your goals? What do you hope to achieve?" style="resize:vertical;font-size:12px;line-height:1.5;"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Open Date</label>
+        <input type="date" class="form-input" id="capsule-open-date">
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px;padding:10px;font-size:12px;" onclick="sealCapsule()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" style="flex-shrink:0;vertical-align:middle;"><rect x="3" y="11" width="18" height="11"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> SEAL CAPSULE</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: AI HABIT SUGGEST ══ -->
+<div class="modal-overlay" id="modal-ai-suggest" onclick="if(event.target===this)closeModal('modal-ai-suggest')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" style="display:flex;align-items:center;gap:7px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--yellow)" stroke-width="2" stroke-linecap="round"><path d="M12 2a7 7 0 017 7c0 3.87-3 5-3 9H8c0-4-3-5.13-3-9a7 7 0 017-7z"/><line x1="8" y1="22" x2="16" y2="22"/><line x1="12" y1="18" x2="12" y2="22"/></svg> AI HABIT BUILDER</div>
+      <div class="modal-close" onclick="closeModal('modal-ai-suggest')">×</div>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--black);border:2px solid var(--yellow);padding:9px 11px;margin-bottom:11px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--yellow);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">Powered by Claude AI</div>
+        <div style="font-size:10px;color:var(--sub);">Describe your goal → get a personalized habit system built for you.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">What's your goal?</label>
+        <input type="text" class="form-input" id="ai-goal-input" placeholder="e.g. Lose 10kg, learn guitar, be more productive...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Time available per day</label>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;">
+          <button class="btn btn-sm freq-btn sel" onclick="selAITime(this,'15min')">15 min</button>
+          <button class="btn btn-sm freq-btn" onclick="selAITime(this,'30min')">30 min</button>
+          <button class="btn btn-sm freq-btn" onclick="selAITime(this,'1hr')">1 hr</button>
+          <button class="btn btn-sm freq-btn" onclick="selAITime(this,'2hr+')">2 hr+</button>
+        </div>
+        <input type="hidden" id="ai-time-input" value="15min">
+      </div>
+      <button class="btn btn-primary" id="ai-gen-btn" style="width:100%;margin-top:8px;padding:10px;font-size:12px;" onclick="generateHabitSuggestions()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" style="flex-shrink:0;vertical-align:middle;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> GENERATE HABITS</button>
+      <div id="ai-suggestions-result" style="margin-top:11px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ HABIT DETAIL OVERLAY (full screen slide-in) ══ -->
+<div class="habit-detail-overlay" id="habit-detail-overlay">
+  <div class="hd-header" style="padding:11px;display:flex;align-items:center;gap:9px;position:sticky;top:0;z-index:10;">
+    <button class="btn btn-sm btn-accent" onclick="closeHabitDetail()" style="padding:6px 10px;">← BACK</button>
+    <div style="flex:1;">
+      <div id="hd-title" class="hd-header-title" style="font-family:'Archivo Black',sans-serif;font-size:14px;"></div>
+      <div id="hd-cat" class="hd-header-cat" style="font-family:'IBM Plex Mono',monospace;font-size:8px;text-transform:uppercase;margin-top:2px;"></div>
+    </div>
+    <div id="hd-streak-num" class="hd-header-title" style="font-family:'Archivo Black',sans-serif;font-size:24px;"></div>
+  </div>
+  <div id="hd-body" style="padding:11px;padding-bottom:80px;"></div>
+</div>
+
+<!-- ══ CUSTOM SELECT DROPDOWN (focus habit picker) ══ -->
+<div class="csd-backdrop" id="csd-backdrop" style="display:none;" onclick="closeCustomSelect()"></div>
+<div class="custom-select-dropdown" id="custom-select-dropdown">
+  <div class="csd-header">
+    <span class="csd-title" id="csd-title">SELECT</span>
+    <div class="csd-close" onclick="closeCustomSelect()">×</div>
+  </div>
+  <div class="csd-options" id="csd-options"></div>
+</div>
+
+<!-- ══ TIME PICKER OVERLAY ══ -->
+<div class="time-picker-overlay" id="time-picker-overlay">
+  <div class="time-picker-panel">
+    <!-- Header -->
+    <div style="background:var(--yellow);padding:10px 13px;display:flex;align-items:center;justify-content:space-between;border-bottom:var(--bo-t);">
+      <div style="font-family:'Archivo Black',sans-serif;font-size:11px;color:var(--black);text-transform:uppercase;letter-spacing:2px;">SET WAKTU</div>
+      <div class="modal-close" onclick="closeTimePicker()">×</div>
+    </div>
+    <!-- Display jam besar -->
+    <div style="display:flex;align-items:center;justify-content:center;gap:4px;padding:16px 13px 8px;background:var(--bg);">
+      <span id="tp-h" style="font-family:'Archivo Black',sans-serif;font-size:48px;color:var(--yellow);min-width:60px;text-align:center;line-height:1;">00</span>
+      <span style="font-family:'Archivo Black',sans-serif;font-size:48px;color:var(--yellow);">:</span>
+      <span id="tp-m" style="font-family:'Archivo Black',sans-serif;font-size:48px;color:var(--yellow);min-width:60px;text-align:center;line-height:1;">00</span>
+    </div>
+    <!-- Scrollers 24h -->
+    <div style="display:flex;align-items:center;justify-content:center;gap:13px;padding:8px 13px 13px;">
+      <div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:7px;color:var(--sub);text-align:center;letter-spacing:1px;margin-bottom:3px;">JAM</div>
+        <div class="tp-scroll" id="tp-hour-scroll" style="height:140px;overflow-y:auto;width:64px;text-align:center;border:2px solid var(--bc);background:var(--surface);"></div>
+      </div>
+      <div style="font-family:'Archivo Black',sans-serif;font-size:24px;color:var(--yellow);padding-top:18px;">:</div>
+      <div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:7px;color:var(--sub);text-align:center;letter-spacing:1px;margin-bottom:3px;">MENIT</div>
+        <div class="tp-scroll" id="tp-min-scroll" style="height:140px;overflow-y:auto;width:64px;text-align:center;border:2px solid var(--bc);background:var(--surface);"></div>
+      </div>
+    </div>
+    <!-- Buttons -->
+    <div style="display:flex;gap:7px;padding:0 13px 14px;">
+      <button class="btn" style="flex:1;justify-content:center;" onclick="clearTimePicker()">HAPUS</button>
+      <button class="btn btn-primary" style="flex:2;justify-content:center;" onclick="confirmTimePicker()">✓ KONFIRMASI</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PROFILE PHOTO CROP MODAL ══ -->
+<div class="modal-overlay" id="modal-photo-crop" onclick="if(event.target===this)cancelPhotoCrop()">
+  <div class="modal" style="max-width:340px;">
+    <div class="modal-header"><div class="modal-title">ATUR FOTO PROFIL</div><div class="modal-close" onclick="cancelPhotoCrop()">×</div></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;align-items:center;gap:13px;">
+      <div id="photo-crop-viewport" style="width:230px;height:230px;max-width:100%;border-radius:50%;overflow:hidden;position:relative;border:var(--bo-t);touch-action:none;cursor:grab;background:#000;">
+        <img id="photo-crop-img" draggable="false" alt="" style="position:absolute;left:0;top:0;transform-origin:0 0;user-select:none;pointer-events:none;">
+        <div style="position:absolute;inset:0;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(255,255,255,.35);pointer-events:none;"></div>
+      </div>
+      <div style="width:100%;display:flex;align-items:center;gap:9px;">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--sub);flex-shrink:0;">−</span>
+        <input type="range" id="photo-crop-zoom" min="100" max="300" value="100" style="flex:1;accent-color:var(--yellow);" oninput="onPhotoCropZoom(this.value)">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--sub);flex-shrink:0;">+</span>
+      </div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--sub);text-align:center;letter-spacing:.5px;">GESER FOTO UNTUK MENGATUR POSISI · GUNAKAN SLIDER UNTUK ZOOM</div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="cancelPhotoCrop()">BATAL</button><button class="btn btn-primary" onclick="confirmPhotoCrop()">✓ SIMPAN</button></div>
+  </div>
+</div>
+
+<!-- ══ COMPLETION NOTE OVERLAY ══ -->
+<div class="completion-note-overlay" id="completion-note-overlay">
+  <div class="completion-note-panel">
+    <div id="cn-title" style="font-family:'Archivo Black',sans-serif;font-size:11px;color:var(--yellow);margin-bottom:9px;text-transform:uppercase;">Add Note</div>
+    <textarea class="form-input" id="cn-input" rows="3" placeholder="How did it go? Any notes..." style="resize:none;font-size:12px;margin-bottom:9px;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();confirmCompletionNote(true);}"></textarea>
+    <div style="display:flex;gap:7px;">
+      <button class="btn btn-sm" style="flex:1;" onclick="confirmCompletionNote(false)">SKIP</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="confirmCompletionNote(true)">💾 SAVE NOTE</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ CUSTOM DATE PICKER POPUP ══ -->
+<div id="oht-datepicker-popup" class="oht-datepicker-popup" style="display:none;">
+  <div class="odp-header">
+    <button class="odp-nav" onclick="odpNav(-1)">‹</button>
+    <div class="odp-month" id="odp-month-label"></div>
+    <button class="odp-nav" onclick="odpNav(1)">›</button>
+  </div>
+  <!-- DOW headers + days semua langsung di dalam satu grid container -->
+  <div class="odp-grid" id="odp-days-grid">
+    <!-- headers + days dirender oleh JS -->
+  </div>
+  <div class="odp-footer">
+    <button class="odp-clear-btn" onclick="odpClear()">HAPUS</button>
+    <button class="odp-today-btn" onclick="odpToday()">HARI INI</button>
+  </div>
+</div>
+
+<!-- ══ CUSTOM MONTH PICKER POPUP (untuk Report) ══ -->
+<div id="oht-monthpicker-popup" class="oht-datepicker-popup" style="display:none;">
+  <div class="odp-header">
+    <button class="odp-nav" onclick="ompNav(-1)">‹</button>
+    <div class="odp-month" id="omp-year-label"></div>
+    <button class="odp-nav" onclick="ompNav(1)">›</button>
+  </div>
+  <div class="omp-grid" id="omp-months-grid">
+    <!-- bulan dirender oleh JS -->
+  </div>
+  <div class="odp-footer">
+    <button class="odp-today-btn" onclick="ompThisMonth()" style="margin-left:auto;">BULAN INI</button>
+  </div>
+</div>
+
+<div id="oht-datepicker-overlay" onclick="closeAnyPicker()" style="position:fixed;inset:0;z-index:1999;display:none;"></div>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,7628 @@
+// ── GLOBAL STATE DECLARATIONS (hoisted to prevent TDZ errors) ──
+let _todayGroupByTime = false;
+let _searchDebounce = null;
+let _searchQuery = '';
+let _historyCatFilter = 'all';
+let _insightFilter = 'all';
+let _strengthCache = {};
+let _strengthCacheDate = '';
+let _undoStack = [];
+// [declared at top]
+let _ambientNodes = [];
+let _backfillData = {};
+let _pendingNoteHabitId = null;
+let _moreMenuOpen = false;
+let _longPressTimer = null;
+let _contextMenuHabitId = null;
+let _wasChecked = false;
+let _prevStats = {};
+let _compactMode = false;
+window._aiSuggestions = [];
+
+// ═══════════════════════════════════════════════════════════
+// OHT v4 ELITE
+// ═══════════════════════════════════════════════════════════
+// SVG icon picker definitions — each has id + SVG path
+const HABIT_ICONS = [
+  {id:'star',   svg:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'},
+  {id:'run',    svg:'<circle cx="13" cy="4" r="2"/><path d="M15 8l-3 4-4 1 1 4"/><path d="M9 12l2 5"/><path d="M13 12l4 2 2 4"/>'},
+  {id:'strong', svg:'<path d="M6 4v6"/><path d="M18 4v6"/><path d="M3 7h18"/><path d="M6 10c0 4 2 6 6 6s6-2 6-6"/>'},
+  {id:'book',   svg:'<path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="12" y2="11"/>'},
+  {id:'meditate',svg:'<circle cx="12" cy="5" r="3"/><path d="M6 22c0-4 2.5-7 6-7s6 3 6 7"/><path d="M3 14c2 0 3-1 3-3"/><path d="M21 14c-2 0-3-1-3-3"/>'},
+  {id:'water',  svg:'<path d="M12 2C12 2 5 10 5 15a7 7 0 0014 0c0-5-7-13-7-13z"/>'},
+  {id:'food',   svg:'<path d="M3 2l3 18"/><path d="M9 2v6a3 3 0 006 0V2"/><path d="M15 2v18"/>'},
+  {id:'target', svg:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>'},
+  {id:'write',  svg:'<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>'},
+  {id:'music',  svg:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>'},
+  {id:'sun',    svg:'<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>'},
+  {id:'sleep',  svg:'<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>'},
+  {id:'lift',   svg:'<line x1="6" y1="5" x2="6" y2="19"/><line x1="18" y1="5" x2="18" y2="19"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="6" y1="5" x2="10" y2="5"/><line x1="6" y1="19" x2="10" y2="19"/><line x1="14" y1="5" x2="18" y2="5"/><line x1="14" y1="19" x2="18" y2="19"/>'},
+  {id:'brain',  svg:'<path d="M9.5 2a4.5 4.5 0 014.5 4.5v1A4.5 4.5 0 0119.5 12v0a4.5 4.5 0 01-4.5 4.5h-6A4.5 4.5 0 014.5 12v0A4.5 4.5 0 019 7.5v-1A4.5 4.5 0 019.5 2z"/>'},
+  {id:'pill',   svg:'<path d="M10.5 20.5l10-10a4.95 4.95 0 00-7-7l-10 10a4.95 4.95 0 007 7z"/><line x1="8.5" y1="8.5" x2="15.5" y2="15.5"/>'},
+  {id:'leaf',   svg:'<path d="M17 8C8 10 5.9 16.17 3.82 19.97"/><path d="M3.82 19.97A10 10 0 0122 12c0-8.5-6-12-6-12C13 4 9 6 9 12a6 6 0 006 6c3 0 5-2 5-2"/>'},
+  {id:'bike',   svg:'<circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 000-2h-3l-3 9"/><path d="M5.5 17.5l5-9 4 6"/><line x1="13" y1="4" x2="19" y2="4"/>'},
+  {id:'art',    svg:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 012-2h6a2 2 0 012 2v1.662"/>'},
+  {id:'money',  svg:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>'},
+  {id:'people', svg:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>'},
+  {id:'clean',  svg:'<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><polyline points="9 22 9 12 15 12 15 22"/>'},
+  {id:'phone',  svg:'<rect x="5" y="2" width="14" height="20"/><line x1="12" y1="18" x2="12.01" y2="18"/>'},
+  {id:'clock',  svg:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'},
+  {id:'fire',   svg:'<path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 01-7 7c-1.86 0-3.516-.5-4.862-1.5A7 7 0 012 17"/><path d="M14 14.5c0 1.38-1.12 2.5-2.5 2.5A2.5 2.5 0 019 14.5c0-1 .5-2 1.5-3 .26.62.5 1.3.5 2 .64-.34 1.5-1.26 2-2.5.5 1 1 2 1 3z"/>'},
+  {id:'bolt',   svg:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'},
+  {id:'heart',  svg:'<path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>'},
+  {id:'coffee', svg:'<path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>'},
+  {id:'swim',   svg:'<path d="M2 12h20"/><path d="M2 6c3 0 5 2 8 2s5-2 8-2"/><path d="M2 18c3 0 5-2 8-2s5 2 8 2"/><circle cx="12" cy="3" r="1"/>'},
+  {id:'check2', svg:'<polyline points="20 6 9 17 4 12"/>'},
+  {id:'code',   svg:'<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>'},
+  {id:'yoga',   svg:'<circle cx="12" cy="4" r="2"/><path d="M12 6v6"/><path d="M6 12l3 2 3-2 3 2 3-2"/><path d="M9 14l-3 5"/><path d="M15 14l3 5"/>'},
+];
+const EMOJIS = HABIT_ICONS.map(i => i.id);
+const COLORS=['#FFE600','#FF3CAC','#00F5D4','#AAFF00','#FF6B00','#0057FF','#7B2FBE','#FF1744','#00BCD4','#FF9800','#4CAF50','#E91E63'];
+const CATS={
+  health:{label:'Health',svg:'<path d="M6 4v6"/><path d="M18 4v6"/><path d="M3 7h18"/><path d="M6 10c0 4 2 6 6 6s6-2 6-6"/>',color:'#FF3CAC'},
+  mind:{label:'Mind',svg:'<path d="M9.5 2a4.5 4.5 0 014.5 4.5c0 1.5-.5 2.5-1.5 3.5h3a4.5 4.5 0 010 9H9a4.5 4.5 0 010-9h.5C8 9 7.5 8 7.5 6.5A4.5 4.5 0 019.5 2z"/>',color:'#0057FF'},
+  productivity:{label:'Work',svg:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',color:'#FFE600'},
+  wellness:{label:'Wellness',svg:'<path d="M17 8C8 10 5.9 16.17 3.82 19.97"/><path d="M3.82 19.97A10 10 0 0122 12c0-8.5-6-12-6-12C13 4 9 6 9 12a6 6 0 006 6c3 0 5-2 5-2"/>',color:'#00F5D4'},
+  social:{label:'Social',svg:'<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>',color:'#FF6B00'},
+  finance:{label:'Finance',svg:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>',color:'#AAFF00'},
+  creativity:{label:'Creative',svg:'<circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>',color:'#7B2FBE'},
+  custom:{label:'Custom',svg:'<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>',color:'#888'},
+};
+const DAILY_FREQS=['daily','weekdays','weekends','3x/week'];
+const MOOD_EMOJIS=['','😫','😕','😐','😊','🔥'];
+const MISSIONS=[
+  {id:'m1',title:'FIRST BLOOD',desc:'7-day streak on any habit',icon:'target',goal:7,type:'streak',reward:1},
+  {id:'m2',title:'CONSISTENCY KING',desc:'ALL daily habits done 3 days straight',icon:'👑',goal:3,type:'perfect_days',reward:2},
+  {id:'m3',title:'HABIT COLLECTOR',desc:'Add 5 or more habits',icon:'📋',goal:5,type:'habit_count',reward:1},
+  {id:'m4',title:'CENTURY CLUB',desc:'Reach 100 total XP',icon:'💯',goal:100,type:'xp',reward:2},
+  {id:'m5',title:'ON A ROLL',desc:'7 perfect days in a row',icon:'🔥',goal:7,type:'perfect_days',reward:3},
+  {id:'m6',title:'XP BEAST',desc:'Reach 500 total XP',icon:'⚡',goal:500,type:'xp',reward:5},
+  {id:'m7',title:'WEEK WARRIOR',desc:'Weekly habit 4 consecutive weeks',icon:'⚔️',goal:4,type:'weekly_streak',reward:2},
+];
+const CHALLENGES=[
+  {id:'c1',title:'30-DAY WARRIOR',desc:'All habits done 30 days straight.',goal:30,color:'#FF3CAC',icon:'⚔️'},
+  {id:'c2',title:'HYDRATION HERO',desc:'Water habit every day for 21 days.',goal:21,color:'#00F5D4',icon:'water'},
+  {id:'c3',title:'EARLY RISER',desc:'Morning habits 14 days.',goal:14,color:'#FFE600',icon:'🌅'},
+];
+const LVL_NAMES=['ROOKIE','STARTER','GRINDER','WARRIOR','CHAMPION','LEGEND','GOD'];
+
+let focusState={running:false,isBreak:false,workDur:25*60,breakDur:5*60,remaining:25*60,total:25*60,sessions:0,interval:null,linkedHabit:''};
+
+// ── STATE ──────────────────────────────────────────────────
+let S={
+  habits:[],history:[],lockedDays:{},
+  xp:0,name:'User',
+  freezes:0,freezeLog:[],
+  missions:[],
+  moodLog:{},coachHistory:[],weeklyReviews:[],insightFeed:[],
+  todayFilter:'all',historyFilter:'all',reportPeriod:'daily',
+  habitsSort:'default',habitsCatFilter:'all',
+  soundOn:true,confettiOn:true,onboardDone:false,
+  vacationMode:false,vacationEnd:'',
+  lastDate:todayStr(),selTemplate:null,
+};
+
+function todayStr(){
+  const d=new Date();
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function getWeekMon(){
+  const d=new Date();const day=d.getDay()||7;d.setDate(d.getDate()-day+1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function getMonthStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+const $ = id => document.getElementById(id);
+const setTxt = (id,v) => {const el=$(id);if(el)el.textContent=v;};
+
+// ── LOAD / SAVE ────────────────────────────────────────────
+function loadState(){
+  const raw=localStorage.getItem('hb_v5');
+  if(raw){
+    try{
+      const d=JSON.parse(raw);
+      S=Object.assign({},S,d);
+      if(!S.missions?.length) S.missions=MISSIONS.map(m=>({...m,progress:0,completed:false}));
+    }catch(e){}
+  } else {
+    S.missions=MISSIONS.map(m=>({...m,progress:0,completed:false}));
+  }
+  // FIX: vacation end auto-resume
+  if(S.vacationMode&&S.vacationEnd&&S.vacationEnd<=todayStr()){
+    S.vacationMode=false;S.vacationEnd='';
+    toast('🏖 Vacation ended. Back to tracking!','success');
+  }
+  // Day change
+  const today=todayStr();
+  if(S.lastDate&&S.lastDate!==today&&!S.vacationMode&&new Date(today+'T12:00:00')>new Date(S.lastDate+'T12:00:00')){
+    lockInDay(S.lastDate);resetForNewDay();
+  }
+  S.lastDate=today;
+  // Sunday/Monday review prompt (within 24h window)
+  if(S.onboardDone){
+    const dow=new Date().getDay();
+    if(dow===0||dow===1){
+      const lastRev=S.weeklyReviews?.length?S.weeklyReviews[0].week:'';
+      const mon=getWeekMon();
+      const prevMon=new Date(mon);prevMon.setDate(prevMon.getDate()-7);
+      const prevMonStr=prevMon.toISOString().split('T')[0];
+      // Only prompt if not yet reviewed this week
+      // Auto weekly review prompt removed - user opens manually from History page
+    }
+  }
+}
+
+function lockInDay(dateStr){
+  if(!dateStr||!S.habits) return;
+  S.lockedDays=S.lockedDays||{};
+  const snap=S.habits.map(h=>({
+    habitId:h.id,habitName:h.name,habitIcon:h.icon,
+    category:h.category,completed:!!h.completedToday,xpEarned:h.todayXp||0
+  }));
+  S.lockedDays[dateStr]=snap;
+
+  // Cek apakah ada habit yang missed (due hari itu, tidak selesai, tidak paused, tidak di-skip)
+  const skippedIds=new Set((S.skips&&S.skips[dateStr])||[]);
+  const missedAny=snap.some(sn=>{
+    const h=S.habits.find(x=>x.id===sn.habitId);
+    return h&&isDueDateStr(h,dateStr)&&!sn.completed&&!h.paused&&!skippedIds.has(h.id);
+  });
+
+  // Pakai freeze kalau ada yang missed
+  const freezeUsed=missedAny&&(S.freezes||0)>0;
+  if(freezeUsed){
+    S.freezes--;S.freezeLog=S.freezeLog||[];
+    S.freezeLog.unshift({date:dateStr,reason:'Auto-used: protected missed habits',earned:false,used:true});
+    playSound('freeze');
+  }
+
+  // FIX 1: Reset streak daily habits yang missed dan tidak dilindungi freeze/skip
+  if(!freezeUsed){
+    S.habits.forEach(h=>{
+      if(h.paused||h.archived) return;
+      const f=h.freq||'daily';
+      const sn=snap.find(s=>s.habitId===h.id);
+      const missed=sn&&!sn.completed&&isDueDateStr(h,dateStr)&&!skippedIds.has(h.id);
+      if(!missed) return;
+      if(DAILY_FREQS.includes(f)){
+        h.streak=0;
+      }
+      // weekly/monthly streak reset ditangani di resetForNewDay saat periode baru mulai
+    });
+  }
+
+  S.history=S.history.filter(e=>!(e.date===dateStr&&!e.locked));
+  snap.forEach(sn=>{
+    if(sn.completed&&!S.history.some(e=>e.date===dateStr&&e.habitId===sn.habitId&&e.locked)){
+      S.history.unshift({id:'l_'+sn.habitId+'_'+dateStr,habitId:sn.habitId,habitName:sn.habitName,habitIcon:sn.habitIcon,category:sn.category,date:dateStr,status:'done',xp:sn.xpEarned,locked:true});
+    }
+  });
+  if(S.history.length>2000)S.history=S.history.slice(0,2000);
+}
+
+function resetForNewDay(){
+  const todayDay=new Date().getDay();const todayDate=new Date().getDate();
+  const curWeek=getWeekMon();const curMonth=getMonthStr();
+  S.habits.forEach(h=>{
+    const f=h.freq||'daily';
+    // FIX 2: reset skippedToday setiap hari baru tanpa terkecuali
+    h.skippedToday=false;
+    if(DAILY_FREQS.includes(f)){
+      h.completedToday=false;h.currentProgress=0;h.todayXp=0;
+      // Reset weekLog every Monday
+      if(todayDay===1){h.weekLog=Array(7).fill(false);}
+      if(todayDay===1&&h.progressive&&h.progressive!=='none'){
+        const rate={slow:.1,medium:.2,fast:.3}[h.progressive]||0;
+        h.baseTarget=h.baseTarget||h.target;
+        const weeksElapsed=Math.max(0,Math.floor((Date.now()-new Date(h.createdAt||Date.now()))/(7*864e5)));
+        h.target=Math.max(h.baseTarget,Math.round(h.baseTarget*(1+rate*weeksElapsed)));
+      }
+    } else if(f==='weekly'){
+      if(todayDay===1){
+        if(h.lastWeekChecked&&h.lastWeekChecked!==curWeek){
+          const prev=new Date(curWeek);prev.setDate(prev.getDate()-7);
+          if(h.lastWeekChecked!==prev.toISOString().split('T')[0])h.streak=0;
+        }
+        h.completedToday=false;h.currentProgress=0;h.todayXp=0;
+      }
+    } else if(f==='monthly'){
+      if(todayDate===1){
+        const now=new Date();
+        const prevMonth=new Date(now.getFullYear(),now.getMonth()-1,1);
+        const prevMonthStr=prevMonth.getFullYear()+'-'+String(prevMonth.getMonth()+1).padStart(2,'0');
+        if(h.lastMonthChecked&&h.lastMonthChecked!==prevMonthStr){h.streak=0;}
+        h.completedToday=false;h.currentProgress=0;h.todayXp=0;
+      }
+    }
+  });
+}
+
+function save(){
+  try{
+    const today=new Date();
+    // Prune lockedDays older than 90 days
+    if(S.lockedDays){
+      const cutoff=new Date(today);cutoff.setDate(cutoff.getDate()-90);
+      const cutStr=cutoff.toISOString().split('T')[0];
+      Object.keys(S.lockedDays).forEach(d=>{if(d<cutStr)delete S.lockedDays[d];});
+    }
+    // Prune waterLog older than 60 days
+    if(S.waterLog){
+      const cutoff=new Date(today);cutoff.setDate(cutoff.getDate()-60);
+      const cutStr=cutoff.toISOString().split('T')[0];
+      Object.keys(S.waterLog).forEach(d=>{if(d<cutStr)delete S.waterLog[d];});
+    }
+    // Prune focusSessions older than 60 days
+    if(S.focusSessions){
+      const cutoff=new Date(today);cutoff.setDate(cutoff.getDate()-60);
+      const cutStr=cutoff.toISOString().split('T')[0];
+      Object.keys(S.focusSessions).forEach(d=>{if(d<cutStr)delete S.focusSessions[d];});
+    }
+    // Prune completionNotes older than 90 days per habit
+    if(S.completionNotes){
+      const cutoff=new Date(today);cutoff.setDate(cutoff.getDate()-90);
+      const cutStr=cutoff.toISOString().split('T')[0];
+      Object.keys(S.completionNotes).forEach(hId=>{
+        if(S.completionNotes[hId])
+          Object.keys(S.completionNotes[hId]).forEach(d=>{if(d<cutStr)delete S.completionNotes[hId][d];});
+      });
+    }
+    // Cap arrays
+    if(S.insightFeed?.length>50)S.insightFeed=S.insightFeed.slice(0,50);
+    if(S.coachHistory?.length>30)S.coachHistory=S.coachHistory.slice(0,30);
+    if(S.gratitudeLog?.length>100)S.gratitudeLog=S.gratitudeLog.slice(0,100);
+    if(S.sleepLog?.length>60)S.sleepLog=S.sleepLog.slice(0,60);
+    if(S.freezeLog?.length>50)S.freezeLog=S.freezeLog.slice(0,50);
+    if(S.history?.length>2000)S.history=S.history.slice(0,2000);
+    localStorage.setItem('hb_v5',JSON.stringify(S));
+  }catch(e){
+    // If quota exceeded, prune more aggressively
+    try{
+      if(S.history?.length>500)S.history=S.history.slice(0,500);
+      if(S.lockedDays){const keys=Object.keys(S.lockedDays).sort();keys.slice(0,keys.length-30).forEach(k=>delete S.lockedDays[k]);}
+      localStorage.setItem('hb_v5',JSON.stringify(S));
+    }catch(e2){console.warn('OHT: localStorage full, some data may be lost');}
+  }
+}
+
+// ── SOUND ──────────────────────────────────────────────────
+let _actx=null;
+function getACtx(){if(!_actx)_actx=new(window.AudioContext||window.webkitAudioContext)();return _actx;}
+function playSound(type){
+  if(!S.soundOn)return;
+  try{
+    const ctx=getACtx();
+    const sounds={
+      tick:{seqs:[[523,.12,.08],[659,.1,.07]],wave:'square'},
+      uncheck:{seqs:[[400,.1,.06],[300,.1,.05]],wave:'square'},
+      levelup:{seqs:[[523,.12,.09],[659,.12,.09],[784,.12,.09],[1047,.15,.09]],wave:'square'},
+      perfect:{seqs:[[659,.1,.08],[784,.1,.08],[880,.1,.08],[1047,.1,.08],[1319,.18,.08]],wave:'square'},
+      freeze:{seqs:[[300,.08,.06],[400,.08,.06],[500,.1,.06]],wave:'sine'},
+      ach:{seqs:[[523,.13,.09],[784,.13,.09],[1047,.13,.09],[1319,.2,.09]],wave:'square'},
+    };
+    const s=sounds[type]||sounds.tick;
+    s.seqs.forEach(([freq,dur,vol],i)=>{
+      const o=ctx.createOscillator();const g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.type=s.wave;o.frequency.value=freq;
+      const t=ctx.currentTime+i*0.12;
+      g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);
+      o.start(t);o.stop(t+dur+.01);
+    });
+  }catch(e){}
+}
+function toggleSound(){S.soundOn=!S.soundOn;save();updateSoundUI();}
+function toggleSoundSetting(){S.soundOn=!S.soundOn;save();updateSoundUI();}
+function updateSoundUI(){
+  const si=$('sound-icon');
+  if(si){si.innerHTML=S.soundOn
+    ?'<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 010 7"/><path d="M19 5a9 9 0 010 14"/>'
+    :'<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>';}
+  const tog=$('sound-toggle');if(tog)tog.classList.toggle('on',S.soundOn);
+  const ind=$('sound-indicator');if(ind){ind.textContent=S.soundOn?'🔊 SOUND ON':'🔇 SOUND OFF';ind.classList.add('show');setTimeout(()=>ind.classList.remove('show'),1400);}
+}
+
+// ── MOOD ───────────────────────────────────────────────────
+function getMoodViewDate(){ return (typeof _journalViewDate!=='undefined' && _journalViewDate) || todayStr(); }
+function setMood(val,el){
+  const vd=getMoodViewDate();
+  if(vd!==todayStr()){ toast('Hanya mood hari ini yang bisa diubah.','info'); return; }
+  document.querySelectorAll('.mood-btn').forEach(b=>b.classList.remove('sel'));
+  el.classList.add('sel');
+  S.moodLog=S.moodLog||{};S.moodLog[vd]=S.moodLog[vd]||{};
+  S.moodLog[vd].mood=val;S.moodLog[vd].date=vd;
+  updateMoodUI();save();
+}
+function setEnergy(val){
+  const vd=getMoodViewDate();
+  if(vd!==todayStr()){ toast('Hanya mood hari ini yang bisa diubah.','info'); return; }
+  document.querySelectorAll('.edot').forEach((d,i)=>d.classList.toggle('on',i<val));
+  S.moodLog=S.moodLog||{};S.moodLog[vd]=S.moodLog[vd]||{};
+  S.moodLog[vd].energy=val;S.moodLog[vd].date=vd;
+  updateMoodUI();save();
+}
+function updateMoodUI(){
+  const vd=getMoodViewDate();const m=S.moodLog&&S.moodLog[vd];
+  const mc=$('mood-checkin');const badge=$('mood-saved-badge');const lbl=$('mood-label');
+  if(mc)mc.classList.remove('done-today');
+  if(badge)badge.style.display='none';
+  if(m&&(m.mood||m.energy)){
+    if(mc)mc.classList.add('done-today');
+    if(badge)badge.style.display='block';
+  }
+  if(lbl)lbl.textContent = vd===todayStr() ? 'Hari Ini' : (typeof odpFormatLabel==='function'?odpFormatLabel(vd):vd);
+  if(typeof renderMoodHistoryStrip==='function') renderMoodHistoryStrip();
+}
+function restoreMoodUI(){
+  document.querySelectorAll('.mood-btn').forEach(b=>b.classList.remove('sel'));
+  document.querySelectorAll('.edot').forEach(d=>d.classList.remove('on'));
+  const vd=getMoodViewDate();const m=S.moodLog&&S.moodLog[vd];
+  if(m){
+    if(m.mood){const btns=document.querySelectorAll('.mood-btn');if(btns[m.mood-1])btns[m.mood-1].classList.add('sel');}
+    if(m.energy){document.querySelectorAll('.edot').forEach((d,i)=>d.classList.toggle('on',i<m.energy));}
+  }
+  updateMoodUI();
+  // Restore sleep log display values
+  restoreSleepDisplayValues();
+  // Restore water cups display
+  renderWaterTracker();
+  // Restore daily intention
+  renderIntention();
+}
+function restoreSleepDisplayValues(){
+  // Restore scheduled time trigger displays from habits
+  S.habits.forEach(h=>{
+    if(h.scheduledTime){
+      const tv=$('time-trigger-val');
+      // Only set if modal is for this habit (skip for now)
+    }
+  });
+}
+
+// ── VACATION MODE ──────────────────────────────────────────
+function toggleVacation(){
+  S.vacationMode=!S.vacationMode;
+  const vt=$('vacation-toggle');if(vt)vt.classList.toggle('on',S.vacationMode);
+  const ver=$('vacation-end-row');if(ver)ver.style.display=S.vacationMode?'flex':'none';
+  if(S.vacationMode){toast('🏖 Vacation mode ON — streaks protected!','info');}
+  else{toast('🏋️ Vacation mode OFF — tracking resumed.','success');}
+  save();renderAll();
+}
+function setVacationEnd(val){S.vacationEnd=val;save();}
+
+// ── PWA INSTALL ────────────────────────────────────────────
+let _deferredPrompt=null;
+let _pwaInstalled=false;
+
+// Deteksi apakah sudah berjalan sebagai installed PWA
+if(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true){
+  _pwaInstalled=true;
+}
+
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();_deferredPrompt=e;
+  // Update semua tombol install (topbar + settings)
+  ['pwa-install-btn','pwa-settings-btn'].forEach(id=>{
+    const btn=$(id);if(btn)btn.style.display='flex';
+  });
+  _updatePWASettingsUI();
+});
+
+window.addEventListener('appinstalled',()=>{
+  _pwaInstalled=true;_deferredPrompt=null;
+  ['pwa-install-btn','pwa-settings-btn'].forEach(id=>{
+    const btn=$(id);if(btn)btn.style.display='none';
+  });
+  _updatePWASettingsUI();
+  toast('📲 OHT berhasil diinstall!','success');
+});
+
+function installPWA(){
+  if(!_deferredPrompt){ toast('Gunakan menu browser → "Add to Home Screen"','info'); return; }
+  _deferredPrompt.prompt();
+  _deferredPrompt.userChoice.then(r=>{
+    if(r.outcome==='accepted'){
+      toast('📲 Installing OHT...','success');
+    } else {
+      toast('Install dibatalkan.','info');
+    }
+    _deferredPrompt=null;
+    const btn=$('pwa-install-btn');if(btn)btn.style.display='none';
+    _updatePWASettingsUI();
+  });
+}
+
+function _updatePWASettingsUI(){
+  const block=$('pwa-install-block');if(!block)return;
+  const isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+  if(isStandalone){
+    block.innerHTML=`<div style="display:flex;align-items:center;gap:9px;padding:4px 0;">
+      <div style="width:8px;height:8px;background:var(--lime);flex-shrink:0;"></div>
+      <div><div class="sr-label" style="color:var(--lime);">App Installed</div><div class="sr-desc">OHT berjalan sebagai app native</div></div>
+    </div>`;
+  } else if(_deferredPrompt){
+    block.innerHTML=`<div class="setting-row">
+      <div><div class="sr-label">Install sebagai App</div><div class="sr-desc">Tambahkan ke Home Screen untuk akses cepat</div></div>
+      <button class="btn btn-sm btn-primary" id="pwa-settings-btn" onclick="installPWA()">
+        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><rect x="5" y="2" width="14" height="20"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        INSTALL
+      </button>
+    </div>`;
+  } else {
+    block.innerHTML=`<div class="setting-row">
+      <div><div class="sr-label">Install sebagai App</div><div class="sr-desc">Buka menu browser → "Add to Home Screen"</div></div>
+      <button class="btn btn-sm" onclick="toast('Gunakan menu browser → Add to Home Screen','info')" style="opacity:.7;">
+        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><rect x="5" y="2" width="14" height="20"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        MANUAL
+      </button>
+    </div>`;
+  }
+}
+
+// ── INIT ───────────────────────────────────────────────────
+// ── LOADING SCREEN ─────────────────────────────────────────
+(function startLoader() {
+  const loader  = document.getElementById('oht-loader');
+  const fill    = document.getElementById('loader-fill');
+  const pctEl   = document.getElementById('loader-pct');
+  const statusEl= document.getElementById('loader-status');
+  if (!loader || !fill) return;
+
+  const MIN_MS = 3500; // durasi minimum loading screen (3.5 detik)
+  const startTime = Date.now();
+
+  const stages = [
+    { at: 0.15, label: 'LOADING ASSETS'   },
+    { at: 0.35, label: 'RESTORING DATA'   },
+    { at: 0.58, label: 'BUILDING HABITS'  },
+    { at: 0.74, label: 'SYNCING STREAKS'  },
+    { at: 0.90, label: 'ALMOST READY'     },
+    { at: 1.00, label: 'READY'            },
+  ];
+
+  const tick = setInterval(() => {
+    const elapsed = Date.now() - startTime;
+    const ratio = Math.min(1, elapsed / MIN_MS);
+    const pct = Math.round(ratio * 100);
+
+    fill.style.width    = pct + '%';
+    pctEl.textContent   = pct + '%';
+    const stage = stages.find(s => ratio <= s.at) || stages[stages.length - 1];
+    statusEl.textContent = stage.label;
+
+    if (ratio >= 1) clearInterval(tick);
+  }, 40);
+
+  // Simpan referensi supaya init() bisa dismiss setelah app siap DAN durasi minimum tercapai
+  window._loaderInterval = tick;
+  window._loaderStart = startTime;
+  window._loaderMinMs = MIN_MS;
+  window._dismissLoader = function() {
+    const elapsed = Date.now() - window._loaderStart;
+    const wait = Math.max(0, window._loaderMinMs - elapsed);
+    setTimeout(() => {
+      clearInterval(window._loaderInterval);
+      if (fill)   fill.style.width    = '100%';
+      if (pctEl)  pctEl.textContent   = '100%';
+      if (statusEl) statusEl.textContent = 'READY';
+      setTimeout(() => {
+        loader.style.transition = 'opacity .45s ease';
+        loader.style.opacity    = '0';
+        setTimeout(() => { loader.style.display = 'none'; }, 460);
+      }, 220);
+    }, wait);
+  };
+})();
+
+function init(){
+  loadState();buildPickers();
+  updateSoundUI();
+  // Sync accent theme UI (attribute already applied earlier via bootstrap script)
+  if (S.accentTheme) {
+    document.documentElement.setAttribute('data-accent', S.accentTheme);
+    document.querySelectorAll('.accent-opt').forEach(el => {
+      el.classList.toggle('sel', el.dataset.accent === S.accentTheme);
+    });
+  }
+  // FIX: dark mode icon sync on load
+  const ct=$('confetti-toggle');if(ct)ct.classList.toggle('on',S.confettiOn!==false);
+  const vt=$('vacation-toggle');if(vt)vt.classList.toggle('on',!!S.vacationMode);
+  const ver=$('vacation-end-row');if(ver)ver.style.display=S.vacationMode?'flex':'none';
+  // Ensure only habits page is active on start
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const _initPage = $('page-habits');
+  if(_initPage) _initPage.classList.add('active');
+  
+  if(!S.onboardDone)showOnboarding();
+  else{
+    try{ renderAll(); } catch(e){ console.error('renderAll error:',e); }
+    try{ restoreMoodUI(); } catch(e){}
+  }
+  const sn=$('st-name');if(sn&&S.name&&S.name!=='User')sn.value=S.name;
+  // Init new features
+  focusState.sessions=(S.focusSessions&&S.focusSessions[todayStr()])||0;
+  updateFocusUI();
+  setTimeout(checkLoginStreak, 800);
+  // Anti-habit: reset failedToday flag on new day load
+  if(S.antiHabits){
+    const td=todayStr();
+    S.antiHabits.forEach(a=>{
+      if(a.lastResisted!==td) a.failedToday=false;
+    });
+  }
+  // Init Firebase
+  setTimeout(initFirebase, 500);
+  // Init date filter labels (tampilkan hari ini)
+  if(typeof initAllDateFilterLabels==='function') setTimeout(initAllDateFilterLabels, 100);
+  // Dismiss loading screen setelah app siap
+  if (typeof window._dismissLoader === 'function') window._dismissLoader();
+  // Update PWA install block di settings
+  setTimeout(_updatePWASettingsUI, 100);
+}
+
+function buildPickers(){
+  const ep=$('emoji-picker');
+  if(ep)ep.innerHTML=HABIT_ICONS.map((ic,i)=>`<div class="emoji-opt${i===0?' sel':''}" onclick="selEmoji(this,'${ic.id}')" title="${ic.id}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ic.svg}</svg></div>`).join('');
+  const cp=$('color-picker');if(cp)cp.innerHTML=COLORS.map((c,i)=>`<div class="color-opt${i===0?' sel':''}" style="background:${c}" onclick="selColor(this,'${c}')"></div>`).join('');
+}
+
+function populateStackPicker(editId){
+  const sel=$('inp-stack');if(!sel)return;
+  sel.innerHTML='<option value="">— None —</option>';
+  S.habits.filter(h=>h.id!==editId).forEach(h=>{sel.innerHTML+=`<option value="${h.id}">${h.icon} ${h.name}</option>`;});
+}
+
+// ── RENDER ALL ─────────────────────────────────────────────
+
+// ── Page view state (global) ──
+let _reportViewDate   = null;
+let _reportViewMonth  = null; // {y, m} m=0-indexed; null = current month
+let _nutrViewDate     = null;
+let _wellnessDate     = null;
+let _journalViewDate  = null;
+let _wellnessWaterMode = 'cups';
+
+function renderAll(){
+  const _r = (fn) => { try{ fn(); }catch(e){ console.error('RENDER ERROR ['+fn.name+']:', e.message); } };
+  _r(renderStats);
+  _r(renderAllHabits);
+  _r(renderStreaks);
+  _r(renderInsightFeed);
+  if(typeof renderMissions==='function') _r(renderMissions);
+  if(typeof renderChallenges==='function') _r(renderChallenges);
+  _r(renderCommitments);
+  _r(renderHistory);
+  if(typeof renderReviewHistory==='function') _r(renderReviewHistory);
+  _r(renderReport);
+  _r(renderShare);
+  _r(renderFreezeLog);
+  if(typeof renderArchive==='function') _r(renderArchive);
+  if(typeof renderCalendar==='function') _r(renderCalendar);
+  _r(renderGoals);
+  _r(renderRituals);
+  _r(renderAntiHabits);
+  _r(renderROI);
+  if(typeof renderCapsules==='function') _r(renderCapsules);
+  if(typeof renderBestTimeCard==='function') _r(renderBestTimeCard);
+  if(typeof renderWeeklySchedule==='function') _r(renderWeeklySchedule);
+  if(typeof renderHabitCorrelations==='function') _r(renderHabitCorrelations);
+}
+
+// ── STATS ──────────────────────────────────────────────────
+let _xpDisp=null;
+function renderStats(){
+  const total=S.habits.filter(h=>!h.archived).length;
+  const done=S.habits.filter(h=>h.completedToday&&!h.archived).length;
+  const pct=total>0?Math.round(done/total*100):0;
+  const best=S.habits.filter(h=>!h.archived).reduce((m,h)=>Math.max(m,h.bestStreak||0),0);
+  setTxt('s-pct',pct+'%');setTxt('s-sub',`${done} of ${total}`);setTxt('s-streak',best);setTxt('s-habits',total);
+  setTxt('d-done',done);setTxt('d-total',total);setTxt('d-streak',best);
+  const tx=S.xp||0;
+  if(_xpDisp===null)_xpDisp=tx;
+  if(_xpDisp!==tx){
+    const step=Math.max(1,Math.ceil(Math.abs(tx-_xpDisp)/10));const dir=tx>_xpDisp?1:-1;
+    const iv=setInterval(()=>{_xpDisp+=dir*step;if(dir>0?_xpDisp>=tx:_xpDisp<=tx){_xpDisp=tx;clearInterval(iv);}setTxt('s-xp',_xpDisp);setTxt('d-xp',_xpDisp);},25);
+  } else {setTxt('s-xp',tx);setTxt('d-xp',tx);}
+  const circ=125.7,off=circ-(pct/100)*circ;
+  const ring=$('ring-circle');if(ring)ring.style.strokeDashoffset=off;
+  setTxt('ring-pct',pct+'%');
+  const msgs=['Start strong! 💪','Keep going! 🔥','Almost there! ⚡','PERFECT DAY! 🏆'];
+  setTxt('daily-msg',msgs[pct<25?0:pct<60?1:pct<100?2:3]);
+  const level=Math.max(1,Math.floor(tx/100)+1);const xpIn=tx%100;
+  const ln=LVL_NAMES[Math.min(level-1,LVL_NAMES.length-1)];
+  const xb=$('xp-bar');if(xb)xb.style.width=xpIn+'%';
+  setTxt('xp-cur',xpIn);setTxt('xp-level',`LVL ${level} — ${ln}`);setTxt('xp-name',S.name||'User');
+  // avatar is now canvas, rendered by renderHomeAvatar
+  setTxt('freeze-count',S.freezes||0);setTxt('freeze-big-count',S.freezes||0);
+  // FIX #14: danger state on freeze chip
+  const chip=$('freeze-chip');
+  const hasBigStreak=S.habits.some(h=>(h.streak||0)>=7);
+  if(chip)chip.classList.toggle('danger',(S.freezes||0)===0&&hasBigStreak);
+  setTxt('s-login',S.loginStreak||1);
+  // FIX: sync vacation toggle
+  const vt=$('vacation-toggle');if(vt)vt.classList.toggle('on',!!S.vacationMode);
+
+  if(typeof renderHomeAvatar==='function') setTimeout(renderHomeAvatar, 50);}
+
+// ── DUE CHECK ──────────────────────────────────────────────
+function isDueToday(h){ if(isRestDay()) return false;return isDueDateStr(h,todayStr());}
+function isDueDateStr(h,ds){
+  const f=h.freq||'daily';const d=new Date(ds+'T12:00:00');const day=d.getDay();const date=d.getDate();
+  if(f==='daily')return true;if(f==='weekdays')return day>=1&&day<=5;
+  if(f==='weekends')return day===0||day===6;if(f==='3x/week')return[1,3,5].includes(day);
+  if(f==='weekly')return day===1;if(f==='monthly')return date===1;return true;
+}
+function isStreakAtRisk(h){
+  return(h.streak||0)>=3&&!h.completedToday&&isDueToday(h)&&new Date().getHours()>=18;
+}
+
+// ── HABIT CARD ─────────────────────────────────────────────
+function habitCard(h,view,pfx){
+  pfx=pfx||'hc';
+  const done=h.completedToday;const cat=CATS[h.category]||CATS.custom;
+  const _hic=HABIT_ICONS.find(x=>x.id===h.icon)||HABIT_ICONS[Math.abs((h.id.charCodeAt(1)||0))%HABIT_ICONS.length]||HABIT_ICONS[0];
+  const _hsvg='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="'+h.color+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+_hic.svg+'</svg>';
+  const _catsvg=cat.svg?('<svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="'+cat.color+'" stroke-width="2" stroke-linecap="round">'+cat.svg+'</svg>'):'';
+  const pct=h.target>1?Math.min(100,Math.round(((h.currentProgress||0)/h.target)*100)):100;
+  const atRisk=isStreakAtRisk(h);
+  const parent=h.stack?S.habits.find(x=>x.id===h.stack):null;
+  const stackReady=parent&&parent.completedToday&&!done;
+  const notesHtml=h.notes?`<div style="font-size:8px;color:var(--sub);font-style:italic;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📝 ${h.notes}</div>`:'';
+  const timeHtml=h.scheduledTime?`<span class="time-badge"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${h.scheduledTime}</span>`:'';
+  const stackHtml=parent?`<div class="stack-chain"><span style="font-size:9px;color:var(--sub)">⛓</span><span class="stack-badge">after ${parent.icon} ${parent.name}</span></div>`:'';
+  const progBadge=h.progressive&&h.progressive!=='none'?`<span class="prog-level-badge"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>+${({slow:'10',medium:'20',fast:'30'})[h.progressive]}%/wk</span>`:'';
+  const pausedBadge=h.paused?`<span class="paused-badge"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> PAUSED</span>`:'';
+  const vacBadge=S.vacationMode?`<span class="paused-badge"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg> VACATION</span>`:'';
+  let extra='';
+  if(view==='weekly'){
+    const dNames=['S','M','T','W','T','F','S'];const td=new Date().getDay();
+    extra=`<div class="weekly-calendar">${dNames.map((dn,i)=>{const wl=(h.weekLog||[])[i];const cls=i<td?(wl?'done':'missed'):(i===td?(h.completedToday?'done':'today'):'future');return `<div class="wc-day"><div class="wdot ${cls}" style="width:12px;height:12px;"></div><span>${dn}</span></div>`;}).join('')}</div>`;
+  } else if(view==='monthly'){
+    const today=new Date();const dim=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
+    const ml=h.monthLog||{};const doneDays=Object.values(ml).filter(Boolean).length;
+    const pctM=Math.round(doneDays/Math.max(1,today.getDate())*100);
+    extra=`<div class="monthly-prog-wrap"><div class="monthly-prog-track"><div class="monthly-prog-fill" style="width:${pctM}%;background:${h.color}"></div></div><span style="font-family:var(--font-mono, monospace);font-size:8px;font-weight:700;">${doneDays}/${today.getDate()}d</span></div><div class="monthly-days-grid">${Array.from({length:dim},(_,i)=>{const day=i+1,td2=today.getDate();const cls=day===td2?'today':(day<td2?(ml[day]?'done':'missed'):'future');return `<div class="mday ${cls}"></div>`;}).join('')}</div>`;
+  }
+  return `<div class="habit-card${done?' completed':''}${stackReady?' stacked-ready':''}" id="${pfx}-${h.id}" draggable="true"
+    ondragstart="dragStart(event,'${h.id}','${pfx}')" ondragover="dragOver(event)" ondrop="dragDrop(event,'${h.id}')" ondragleave="dragLeave(event)" ondragend="dragEnd()">
+    <div class="habit-color-strip" style="background:${h.color}"></div>
+    <div class="habit-swipe-indicator"><span>✓</span></div>
+    <div class="habit-check${done?' checked':''}" onclick="${S.vacationMode||h.paused?'':'toggleHabit(\''+h.id+'\',\''+pfx+'\')'}" style="${S.vacationMode||h.paused?'opacity:.3;cursor:not-allowed;':''}">${done?'✓':''}</div>
+    <div class="habit-icon" style="color:${h.color}">${_hsvg}</div>
+    <div class="habit-info">
+      <div class="habit-name" onclick="event.stopPropagation();openHabitDetail('${h.id}')" style="cursor:pointer;" title="${h.name}">${h.name.length>28?h.name.slice(0,27)+'…':h.name}</div>
+      <div class="habit-meta">
+        <span class="h-tag" style="background:${cat.color}22;border-color:${cat.color}">${_catsvg} ${cat.label}</span>
+        <span class="h-streak"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round"><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 01-7 7c-1.86 0-3.516-.5-4.862-1.5A7 7 0 012 17"/></svg>${h.streak||0}</span>
+        ${atRisk?'<span class="streak-risk"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> AT RISK</span>':''}
+        ${timeHtml}${progBadge}${pausedBadge}${vacBadge}
+        ${(!view||view==='daily')?`<div class="week-dots">${weekDots(h)}</div>`:''}
+      </div>
+      ${notesHtml}${stackHtml}${extra}
+    </div>
+    ${h.target>1?`<div class="habit-prog"><div class="prog-bar"><div class="prog-fill" style="width:${done?100:pct}%;background:${h.color}"></div></div><div class="prog-lbl">${h.currentProgress||0}/${h.target}</div></div>`:''}
+    <div class="habit-expand-btn" onclick="toggleHabitActions(event,'${h.id}','${pfx}')">···</div>
+    <div class="habit-actions">
+      ${h.target>1&&!done&&!S.vacationMode&&!h.paused?`<button class="btn btn-xs btn-success" onclick="incHabit('${h.id}','${pfx}')">+1</button>`:''}
+      ${!done&&!h.skippedToday&&isDueToday(h)?`<button class="btn btn-xs" onclick="skipHabitToday('${h.id}')" title="Skip today (streak safe)" style="font-size:9px;color:var(--orange);">⏭</button>`:h.skippedToday?`<span class="skip-badge"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg> SKIP</span>`:''}
+      <button class="btn btn-xs" onclick="togglePauseHabit('${h.id}')" title="${h.paused?'Resume':'Pause'}" style="padding:4px 6px;">${h.paused?`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><polygon points="5 3 19 12 5 21 5 3"/></svg>`:`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`}</button>
+      <button class="btn btn-xs${h.pinned?' btn-cyan':''}" onclick="togglePinHabit('${h.id}')" title="Pin" style="padding:4px 6px;">${h.pinned?'<svg viewBox="0 0 24 24" width="11" height="11" fill="var(--cyan)" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>':'<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>'}</button>
+<button class="btn btn-xs" onclick="editHabit('${h.id}')" title="Edit" style="padding:4px 6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+      ${!h.archived?`<button class="btn btn-xs" onclick="archiveHabit('${h.id}')" title="Archive" style="padding:4px 6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>`:''}
+      <button class="btn btn-xs btn-danger" onclick="confirmDelete('${h.id}')" title="Delete" style="padding:4px 6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg></button>
+    </div>
+  </div>`;
+}
+
+function weekDots(h){
+  const td=new Date().getDay();
+  return Array.from({length:7},(_,i)=>{const wl=(h.weekLog||[])[i];const cls=i===td?(h.completedToday?'done':'today'):(i<td?(wl?'done':'missed'):'future');return `<div class="wdot ${cls}"></div>`;}).join('');
+}
+
+function togglePauseHabit(id){const h=S.habits.find(x=>x.id===id);if(!h)return;h.paused=!h.paused;save();renderAll();toast(h.paused?`⏸ "${h.name}" paused`:`▶ "${h.name}" resumed`,'info');}
+
+// ── HABITS PAGE: TAB SWITCH (All/Daily/Weekly/Monthly) ──────
+function setHabitsTab(tab,btn){
+  document.querySelectorAll('#habits-tabs .htab').forEach(t=>t.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  document.querySelectorAll('#page-habits .habit-period-section').forEach(sec=>{
+    const p=sec.getAttribute('data-period');
+    sec.style.display=(tab==='all'||tab===p)?'':'none';
+  });
+}
+
+// ── RENDER HABITS PAGE ──────────────────────────────────────
+function renderAllHabits(){
+  // Always exclude archived habits
+  const active=S.habits.filter(h=>!h.archived);
+  const daily=active.filter(h=>DAILY_FREQS.includes(h.freq||'daily'));
+  const weekly=active.filter(h=>h.freq==='weekly');
+  const monthly=active.filter(h=>h.freq==='monthly');
+  setTxt('daily-count-badge',daily.length);setTxt('weekly-count-badge',weekly.length);setTxt('monthly-count-badge',monthly.length);
+  const sf=arr=>{
+    const cat=S.habitsCatFilter||'all';
+    let f=cat==='all'?arr:arr.filter(h=>h.category===cat);
+    if(S.habitsSort==='streak')return[...f].sort((a,b)=>(b.streak||0)-(a.streak||0));
+    if(S.habitsSort==='name')return[...f].sort((a,b)=>a.name.localeCompare(b.name));
+    if(S.habitsSort==='cat')return[...f].sort((a,b)=>(a.category||'').localeCompare(b.category||''));
+    return f;
+  };
+  const rL=(id,arr,view,empty)=>{const el=$(id);if(!el)return;const s=sf(arr);el.innerHTML=s.length?s.map(h=>habitCard(h,view,'hc')).join(''):`<div class="empty"><div class="empty-icon" style="display:flex;justify-content:center;">${empty.i}</div><div class="empty-title">${empty.t}</div></div>`;};
+  rL('daily-habits-list',daily,'daily',{i:'<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',t:'NO DAILY HABITS'});
+  rL('weekly-habits-list',weekly,'weekly',{i:'<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>',t:'NO WEEKLY HABITS'});
+  rL('monthly-habits-list',monthly,'monthly',{i:'<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>',t:'NO MONTHLY HABITS'});
+}
+
+// ── TOGGLE / INCREMENT ──────────────────────────────────────
+function _baseToggleHabit(id,pfx){
+  const h=S.habits.find(x=>x.id===id);if(!h||S.vacationMode||h.paused)return;
+  window._wasChecked=h.completedToday;
+  if(!h.completedToday){
+    h.completedToday=true;h.currentProgress=h.target;
+    const f=h.freq||'daily';
+    // Simpan streak sebelum naik untuk keperluan uncheck yang akurat
+    h._streakBefore=h.streak||0;
+    if(DAILY_FREQS.includes(f))h.streak=(h.streak||0)+1;
+    else if(f==='weekly'){const wk=getWeekMon();if(h.lastWeekChecked!==wk){h.streak=(h.streak||0)+1;h.lastWeekChecked=wk;}}
+    else if(f==='monthly'){const mo=getMonthStr();if(h.lastMonthChecked!==mo){h.streak=(h.streak||0)+1;h.lastMonthChecked=mo;}}
+    h.bestStreak=Math.max(h.bestStreak||0,h.streak||0);
+    h.weekLog=h.weekLog||Array(7).fill(false);h.weekLog[new Date().getDay()]=true;
+    S._perfectDayShownToday=null;
+    h.monthLog=h.monthLog||{};h.monthLog[new Date().getDate()]=true;
+    h.totalDone=(h.totalDone||0)+1;
+    // XP berdasarkan frekuensi: daily=10, weekly=70, monthly=300
+    const f2=h.freq||'daily';
+    const xp=f2==='monthly'?300:f2==='weekly'?70:10;
+    h.todayXp=(h.todayXp||0)+xp;S.xp=(S.xp||0)+xp;
+    S.history=S.history.filter(e=>!(e.habitId===h.id&&e.date===todayStr()&&!e.locked));
+    S.history.unshift({id:'t_'+h.id+'_'+Date.now(),habitId:h.id,habitName:h.name,habitIcon:h.icon,category:h.category,date:todayStr(),status:'done',xp,locked:false});
+    playSound('tick');toast(`✅ ${h.name} +${xp} XP`,'success');
+    if(S.confettiOn!==false)confetti(4);
+    const stacked=S.habits.filter(sh=>sh.stack===h.id&&!sh.completedToday&&!sh.paused);
+    if(stacked.length)setTimeout(()=>toast(`⛓ Next: ${stacked[0].icon} ${stacked[0].name}`,'info'),500);
+    const dueH=S.habits.filter(x=>isDueToday(x)&&!x.paused&&!x.archived);
+    if(dueH.length>0&&dueH.every(x=>x.completedToday)){
+      setTimeout(()=>{playSound('perfect');if(S.confettiOn!==false)confetti(30);toast('🏆 PERFECT DAY!','success');},350);
+    }
+    const prevLvl=Math.max(1,Math.floor((S.xp-xp)/100)+1);const newLvl=Math.max(1,Math.floor(S.xp/100)+1);
+    if(newLvl>prevLvl)setTimeout(()=>{playSound('levelup');toast(`🎉 LVL ${newLvl} — ${LVL_NAMES[Math.min(newLvl-1,LVL_NAMES.length-1)]}`,'success');},450);
+  } else {
+    // FIX 4: kembalikan streak ke nilai sebelum check (bukan sekedar -1)
+    const xpBack=h.todayXp||getDifficultyXP(h);
+    h.completedToday=false;h.currentProgress=0;
+    h.streak=typeof h._streakBefore==='number'?h._streakBefore:Math.max(0,(h.streak||1)-1);
+    h._streakBefore=undefined;
+    h.weekLog=h.weekLog||Array(7).fill(false);h.weekLog[new Date().getDay()]=false;
+    h.monthLog=h.monthLog||{};h.monthLog[new Date().getDate()]=false;
+    // Kembalikan lastWeekChecked/lastMonthChecked kalau streak dikembalikan
+    const f=h.freq||'daily';
+    if(f==='weekly'&&h.streak<(h._streakBefore||0))h.lastWeekChecked=null;
+    if(f==='monthly'&&h.streak<(h._streakBefore||0))h.lastMonthChecked=null;
+    h.totalDone=Math.max(0,(h.totalDone||1)-1);h.todayXp=0;S.xp=Math.max(0,(S.xp||0)-xpBack);
+    S.history=S.history.filter(e=>!(e.habitId===h.id&&e.date===todayStr()&&!e.locked));
+    playSound('uncheck');toast(`↩ ${h.name} unchecked`,'info');
+  }
+  [`hc-${id}`,`th-${id}`].forEach(cid=>{
+    const c=$(cid);if(!c)return;
+    const chk=c.querySelector('.habit-check');
+    c.classList.add('pop');setTimeout(()=>c.classList.remove('pop'),350);
+    if(chk){
+      const cls=_wasChecked?'just-unchecked':'just-checked';
+      chk.classList.add(cls);setTimeout(()=>chk.classList.remove(cls),400);
+    }
+  });
+  _invalidateStrengthCache();
+  // Check perfect day
+  setTimeout(()=>{ const active=S.habits.filter(h=>!h.archived); const due=active.filter(h=>isDueToday(h)&&!h.paused); if(due.length>0&&due.every(h=>h.completedToday)&&!S._perfectDayShownToday){S._perfectDayShownToday=todayStr();setTimeout(showPerfectDay,400);} },200);
+  updateMissions();save();renderAll();
+}
+
+function incHabit(id,pfx){const h=S.habits.find(x=>x.id===id);if(!h||h.completedToday)return;h.currentProgress=(h.currentProgress||0)+1;if(h.currentProgress>=h.target)toggleHabit(id,pfx);else{save();renderAll();}}
+function completeAll(){
+  const p=S.habits.filter(h=>!h.completedToday&&isDueToday(h)&&!h.paused&&!S.vacationMode&&!h.archived);
+  if(!p.length){toast('All done!','info');return;}
+  const curWeek=getWeekMon();const curMonth=getMonthStr();
+  // FIX 5+7: streak logic konsisten dengan _baseToggleHabit, pakai getDifficultyXP
+  p.forEach(h=>{
+    window._wasChecked=false;
+    h.completedToday=true;h.currentProgress=h.target;
+    const f=h.freq||'daily';
+    h._streakBefore=h.streak||0;
+    if(DAILY_FREQS.includes(f)){
+      h.streak=(h.streak||0)+1;
+    } else if(f==='weekly'){
+      const wk=curWeek;
+      if(h.lastWeekChecked!==wk){h.streak=(h.streak||0)+1;h.lastWeekChecked=wk;}
+    } else if(f==='monthly'){
+      const mo=curMonth;
+      if(h.lastMonthChecked!==mo){h.streak=(h.streak||0)+1;h.lastMonthChecked=mo;}
+    }
+    h.bestStreak=Math.max(h.bestStreak||0,h.streak||0);
+    h.weekLog=h.weekLog||Array(7).fill(false);h.weekLog[new Date().getDay()]=true;
+    h.monthLog=h.monthLog||{};h.monthLog[new Date().getDate()]=true;
+    h.totalDone=(h.totalDone||0)+1;
+    const f2c=h.freq||'daily';
+    const xp=f2c==='monthly'?300:f2c==='weekly'?70:10;
+    h.todayXp=(h.todayXp||0)+xp;
+    S.xp=(S.xp||0)+xp;
+    S.history=S.history||[];
+    S.history.unshift({id:'t_'+h.id+'_'+Date.now(),habitId:h.id,habitName:h.name,habitIcon:h.icon,category:h.category,date:todayStr(),status:'done',xp,locked:false});
+    haptic('success');
+  });
+  _invalidateStrengthCache();
+  updateMissions();save();
+  playSound('perfect');
+  if(S.confettiOn!==false)confetti(20);
+  toast(`All ${p.length} done!`,'success');
+  setTimeout(()=>{
+    const al=S.habits.filter(h=>!h.archived);
+    if(al.length&&al.every(h=>h.completedToday))saveJournalEntry('');
+  },400);
+  renderAll();
+}
+
+// ── CUSTOM CONFIRM DELETE ───────────────────────────────────
+let _pendingDeleteId=null;
+function confirmDelete(id){
+  const h=S.habits.find(x=>x.id===id);if(!h)return;
+  _pendingDeleteId=id;
+  setTxt('confirm-habit-name',`${h.icon} ${h.name}`);
+  $('confirm-dialog').classList.add('open');
+}
+function closeConfirm(){$('confirm-dialog').classList.remove('open');_pendingDeleteId=null;}
+function executeDelete(){
+  if(!_pendingDeleteId)return;
+  const id=_pendingDeleteId;closeConfirm();
+  const h=S.habits.find(x=>x.id===id);if(!h)return;
+  S.habits=S.habits.filter(x=>x.id!==id);
+  S.habits.forEach(sh=>{if(sh.stack===id)sh.stack='';});
+  S.history=(S.history||[]).filter(e=>e.habitId!==id);
+  if(S.lockedDays)Object.keys(S.lockedDays).forEach(d=>{if(S.lockedDays[d])S.lockedDays[d]=S.lockedDays[d].filter(s=>s.habitId!==id);});
+  _invalidateStrengthCache();toast(`"${h.name}" deleted`,'error');updateMissions();save();renderAll();
+}
+
+// ── FREEZE ─────────────────────────────────────────────────
+function earnFreeze(amount,reason){
+  S.freezes=(S.freezes||0)+amount;S.freezeLog=S.freezeLog||[];
+  S.freezeLog.unshift({date:todayStr(),reason,earned:amount,used:false});
+  save();renderStats();renderFreezeLog();
+  toast(`❄ +${amount} Freeze${amount>1?'s':''} earned!`,'info');
+}
+function renderFreezeLog(){
+  const el=$('freeze-log-list');if(!el)return;
+  const log=S.freezeLog||[];
+  if(!log.length){el.innerHTML=`<div style="font-family:var(--font-mono, monospace);font-size:9px;color:var(--sub);text-align:center;padding:13px;">No freeze activity yet</div>`;return;}
+  el.innerHTML=log.slice(0,30).map(l=>`<div style="display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid var(--bg);font-size:10px;"><span style="font-family:var(--font-mono, monospace);font-size:7px;color:var(--sub);flex-shrink:0;min-width:60px;">${l.date}</span><span style="flex:1;">${l.reason}</span><span style="font-weight:700;font-family:var(--font-mono, monospace);font-size:9px;color:${l.earned?'var(--cyan)':'var(--orange)'};">${l.earned?'+'+l.earned+'❄':'-1❄'}</span></div>`).join('');
+}
+
+// ── MISSIONS ───────────────────────────────────────────────
+function updateMissions(){
+  if(!S.missions?.length)S.missions=MISSIONS.map(m=>({...m,progress:0,completed:false}));
+  const best=S.habits.reduce((m,h)=>Math.max(m,h.streak||0),0);
+  const perfectDays=S.lockedDays?Object.values(S.lockedDays).filter(snap=>snap.length>0&&snap.every(h=>h.completed)).length:0;
+  const weeklyBest=Math.max(0,...S.habits.filter(h=>h.freq==='weekly').map(h=>h.streak||0),0);
+  S.missions.forEach(m=>{
+    if(m.completed)return;
+    let prog=0;
+    if(m.type==='streak')prog=best;else if(m.type==='perfect_days')prog=perfectDays;
+    else if(m.type==='habit_count')prog=S.habits.filter(h=>!h.archived).length;else if(m.type==='xp')prog=S.xp||0;
+    else if(m.type==='weekly_streak')prog=weeklyBest;
+    m.progress=Math.min(prog,m.goal);
+    if(m.progress>=m.goal){m.completed=true;earnFreeze(m.reward,`Mission: ${m.title}`);}
+  });
+}
+function renderMissions(){
+  const el=$('missions-list');if(!el)return;
+  if(!S.missions?.length)S.missions=MISSIONS.map(m=>({...m,progress:0,completed:false}));
+  el.innerHTML=S.missions.map(m=>{const pct=Math.min(100,Math.round(((m.progress||0)/m.goal)*100));return `<div class="mission-card"><div class="mc-header"><div class="mc-icon">${m.icon}</div><div style="flex:1;"><div class="mc-title">${m.title}</div><div class="mc-reward">❄ +${m.reward} Freeze${m.reward>1?'s':''}</div></div>${m.completed?'<div class="mc-status-done">✓ DONE</div>':''}</div><div class="mc-desc">${m.desc}</div>${!m.completed?`<div class="mc-prog-track"><div class="mc-prog-fill" style="width:${pct}%"></div></div><div class="mc-footer"><span>${m.progress||0}/${m.goal}</span><span>${pct}%</span></div>`:`<div style="font-family:var(--font-mono, monospace);font-size:8px;color:var(--lime);">✓ ${m.reward} freeze${m.reward>1?'s':''} earned</div>`}</div>`;}).join('');
+}
+
+// ── STREAKS ────────────────────────────────────────────────
+function getStreakTier(s) {
+  // Api TikTok style — perubahan di kelipatan 50
+  if(s>=200) return {fire:'🖤',label:'OBSIDIAN',c:'#FFE600',bg:'#1A1A1A',border:'#FFE600'};
+  if(s>=150) return {fire:'❤️‍🔥',label:'INFERNO',c:'#FF3636',bg:'#FF363618',border:'#FF3636'};
+  if(s>=100) return {fire:'💙',label:'ICE FIRE',c:'#00B4FF',bg:'#00B4FF18',border:'#00B4FF'};
+  if(s>=50)  return {fire:'💜',label:'VIOLET',c:'#9B5DE5',bg:'#9B5DE518',border:'#9B5DE5'};
+  if(s>=21)  return {fire:'🔥',label:'HOT',c:'#FF6B00',bg:'#FF6B0018',border:'#FF6B00'};
+  if(s>=7)   return {fire:'🔥',label:'WARMING',c:'#FFE600',bg:'#FFE60018',border:'#FFE600'};
+  if(s>=3)   return {fire:'✨',label:'RISING',c:'#aaa',bg:'transparent',border:'#555'};
+  return {fire:'○',label:'STARTING',c:'#666',bg:'transparent',border:'#333'};
+}
+
+// Render sebuah SVG icon habit (dari HABIT_ICONS) siap pakai di teks kecil,
+// warnanya ikut currentColor supaya menyatu dengan warna label di sekitarnya.
+function habitIconSvg(iconId, size) {
+  const ic = HABIT_ICONS.find(x => x.id === iconId) || HABIT_ICONS[0];
+  const sz = size || 13;
+  return `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;">${ic.svg}</svg>`;
+}
+
+function makeStreakCard(iconHtml, name, streak, best) {
+  const s = streak||0;
+  const t = getStreakTier(s);
+  return `<div class="streak-card" style="border-color:${t.border};background:color-mix(in srgb,${t.border} 5%,var(--surface));">
+    <div class="streak-fire" style="font-size:22px;">${t.fire}</div>
+    <div class="streak-num" style="color:${t.c};font-size:32px;">${s}</div>
+    <div class="streak-name" style="font-size:10px;display:flex;align-items:center;justify-content:center;gap:4px;">${iconHtml}<span>${name}</span></div>
+    <div class="streak-badge" style="background:${t.bg};border:1px solid ${t.border};color:${t.c};font-size:7px;padding:2px 7px;margin-top:4px;font-family:var(--font-mono, monospace);">${t.label}</div>
+    <div style="font-family:var(--font-mono, monospace);font-size:7px;color:var(--sub);margin-top:3px;">BEST: ${best||0}</div>
+  </div>`;
+}
+
+function renderStreaks(){
+  const dailyBoard=$('streak-board-daily');if(!dailyBoard)return;
+  const weeklyBoard=$('streak-board-weekly');
+  const monthlyBoard=$('streak-board-monthly');
+  const specBoard=$('streak-board-specialist');
+
+  const active=[...S.habits].filter(h=>!h.archived).sort((a,b)=>(b.streak||0)-(a.streak||0));
+  const daily=active.filter(h=>DAILY_FREQS.includes(h.freq||'daily'));
+  const weekly=active.filter(h=>h.freq==='weekly');
+  const monthly=active.filter(h=>h.freq==='monthly');
+
+  const cardsFor=arr=>arr.map(h=>makeStreakCard(
+    habitIconSvg(h.icon), h.name, h.streak||0, h.bestStreak||0
+  )).join('');
+
+  setTxt('streak-daily-badge', daily.length);
+  setTxt('streak-weekly-badge', weekly.length);
+  setTxt('streak-monthly-badge', monthly.length);
+  dailyBoard.innerHTML = daily.length?cardsFor(daily):getEmptyState('streaks');
+  if(weeklyBoard) weeklyBoard.innerHTML = weekly.length?cardsFor(weekly):getEmptyState('streaks');
+  if(monthlyBoard) monthlyBoard.innerHTML = monthly.length?cardsFor(monthly):getEmptyState('streaks');
+
+  // Streak "Specialist" — khusus target minum air & target jam tidur dari halaman Wellness
+  if(specBoard){
+    const waterIcon='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><path d="M12 2C12 2 5 10 5 15a7 7 0 0014 0c0-5-7-13-7-13z"/></svg>';
+    const sleepIcon='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>';
+    const ws = (typeof getWellnessStreaks==='function') ? getWellnessStreaks() : {waterStreak:0,waterBest:0,sleepStreak:0,sleepBest:0};
+    setTxt('streak-specialist-badge', 2);
+    specBoard.innerHTML =
+      makeStreakCard(waterIcon, 'Target Air', ws.waterStreak||0, ws.waterBest||0) +
+      makeStreakCard(sleepIcon, 'Target Tidur', ws.sleepStreak||0, ws.sleepBest||0);
+  }
+}
+
+// ── CHALLENGES ─────────────────────────────────────────────
+function renderChallenges(){
+  const el=$('challenges-list');if(!el)return;
+  el.innerHTML=CHALLENGES.map(c=>{const pct=Math.round((c.progress||0)/c.goal*100);return `<div class="challenge-card"><div class="cc-header"><div class="cc-icon">${c.icon}</div><div><div class="cc-title">${c.title}</div><div class="cc-meta">${c.progress||0}/${c.goal}d</div></div></div><div class="cc-desc">${c.desc}</div><div class="cc-prog-track"><div class="cc-prog-fill" style="width:${pct}%;background:${c.color}"></div></div><div class="cc-footer"><span>${pct}%</span><span>${c.goal-(c.progress||0)} left</span></div></div>`;}).join('');
+}
+
+// ── COMMITMENTS ────────────────────────────────────────────
+function renderCommitments(){
+  const el=$('commitment-section');if(!el)return;
+  const hs=S.habits.filter(h=>h.stake?.trim());
+  if(!hs.length){el.innerHTML=`<div style="font-size:10px;color:var(--sub);padding:9px;border:var(--bo);background:var(--bg);">No commitments yet. Add a "Commitment Stake" when creating a habit.</div>`;return;}
+  el.innerHTML=hs.map(h=>{
+    const cm=getConsecutiveMisses(h.id);const total=(S.history||[]).filter(e=>e.habitId===h.id&&e.status==='missed').length;
+    const warn=cm>=3;
+    return `<div class="contract-card"${warn?' style="border-color:var(--red);animation:none;"':''}>
+      <div class="contract-header"><span style="font-size:18px;">🤝</span><div><div class="contract-title">${h.icon} ${h.name}</div></div>${warn?'<span style="font-family:\'IBM Plex Mono\',monospace;font-size:8px;color:var(--red);font-weight:700;margin-left:auto;">⚠ PAY UP</span>':''}</div>
+      <div class="contract-stake">⚠ ${h.stake}</div>
+      <div style="display:flex;gap:11px;font-family:\'IBM Plex Mono\',monospace;font-size:8px;"><span>Total missed: <strong style="color:var(--red)">${total}</strong></span><span>Consecutive: <strong style="color:${cm>=3?'var(--red)':'var(--muted)'}">${cm}</strong></span></div>
+    </div>`;
+  }).join('');
+}
+function getConsecutiveMisses(habitId){
+  let count=0;const today=new Date();
+  for(let i=1;i<=30;i++){const d=new Date(today);d.setDate(d.getDate()-i);const ds=d.toISOString().split('T')[0];const snap=S.lockedDays&&S.lockedDays[ds];if(!snap)break;const hs=snap.find(s=>s.habitId===habitId);if(hs&&!hs.completed)count++;else break;}
+  return count;
+}
+
+// ── INSIGHT FEED ───────────────────────────────────────────
+function addInsight(text,source){
+  S.insightFeed=S.insightFeed||[];
+  S.insightFeed.unshift({date:todayStr(),text,source});
+  if(S.insightFeed.length>50)S.insightFeed=S.insightFeed.slice(0,50);
+  save();
+}
+function renderInsightFeed(){
+  const el=$('insight-feed');if(!el)return;
+  const feed=(S.insightFeed||[]).filter(f=>_insightFilter==='all'||f.source===_insightFilter);
+  const allFeed=S.insightFeed||[];
+  if(!feed.length){el.innerHTML=getEmptyState("insights");return;}
+  el.innerHTML=feed.slice(0,10).map(f=>`<div class="insight-item"><div class="insight-meta">${f.date} · ${f.source||'AI COACH'}</div><div class="insight-text">${f.text}</div></div>`).join('');
+}
+
+// ── HISTORY ────────────────────────────────────────────────
+function setHistoryFilter(f,el){S.historyFilter=f;document.querySelectorAll('#page-history .ptab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderHistory();}
+function renderHistory(){
+  const list=$('history-list');const countEl=$('history-count');if(!list)return;
+  const now=new Date();let filtered=S.history||[];
+  if(_historyCatFilter&&_historyCatFilter!=='all') filtered=filtered.filter(h=>h.category===_historyCatFilter);
+  if(S.historyFilter==='week'){const c=new Date(now);c.setDate(c.getDate()-7);filtered=filtered.filter(h=>new Date(h.date)>=c);}
+  else if(S.historyFilter==='month'){const c=new Date(now);c.setDate(c.getDate()-30);filtered=filtered.filter(h=>new Date(h.date)>=c);}
+  if(countEl)countEl.textContent=`${filtered.length} entries`;
+  list.innerHTML=filtered.slice(0,200).map(e=>`<div class="history-row" style="border-left:3px solid ${e.locked?'var(--lime)':'var(--orange)'};">
+    <div class="hrow-date">${e.date}</div><div class="hrow-icon">${e.habitIcon||'note'}</div>
+    <div class="hrow-name">${e.habitName||'?'}</div><div class="hrow-status done"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="var(--lime)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg></div><div class="hrow-xp">+${e.xp||10}</div>
+  </div>`).join('')||`<div class="empty"><div class="empty-icon"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div><div class="empty-title">NO HISTORY</div></div>`;
+}
+function renderReviewHistory(){
+  const el=$('review-history-list');if(!el)return;
+  const reviews=S.weeklyReviews||[];
+  if(!reviews.length){el.innerHTML=`<div style="font-size:10px;color:var(--sub);padding:9px;border:var(--bo);background:var(--bg);">No reviews yet. Complete your first Weekly Review!</div>`;return;}
+  el.innerHTML=reviews.slice(0,10).map(r=>`<div class="review-hist-item">
+    <div class="rhi-week">${r.week}</div>
+    ${r.win?`<div class="rhi-section"><div class="rhi-label">🏆 Went well</div>${r.win}</div>`:''}
+    ${r.hard?`<div class="rhi-section"><div class="rhi-label">⚠ Was hard</div>${r.hard}</div>`:''}
+    ${r.change?`<div class="rhi-section"><div class="rhi-label">🎯 To change</div>${r.change}</div>`:''}
+  </div>`).join('');
+}
+
+// ── REPORT ─────────────────────────────────────────────────
+function setReportMonth(offset){
+  const now=new Date();
+  let y, m;
+  if(offset===0 || !_reportViewMonth){
+    y=now.getFullYear(); m=now.getMonth();
+  } else {
+    y=_reportViewMonth.y; m=_reportViewMonth.m+offset;
+  }
+  if(m<0){m=11;y--;} if(m>11){m=0;y++;}
+  // Don't allow navigating into the future
+  if(y>now.getFullYear() || (y===now.getFullYear() && m>now.getMonth())){ y=now.getFullYear(); m=now.getMonth(); }
+  const isCurrent = (y===now.getFullYear() && m===now.getMonth());
+  _reportViewMonth = isCurrent ? null : {y,m};
+  renderReport();
+}
+function getReportMonthRange(){
+  const now=new Date();
+  const y = _reportViewMonth ? _reportViewMonth.y : now.getFullYear();
+  const m = _reportViewMonth ? _reportViewMonth.m : now.getMonth();
+  const isCurrent = (y===now.getFullYear() && m===now.getMonth());
+  const lastDay = isCurrent ? now.getDate() : new Date(y,m+1,0).getDate();
+  const dates=[];
+  for(let d=1; d<=lastDay; d++){
+    dates.push(y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'));
+  }
+  return {y,m,dates,isCurrent};
+}
+function renderReport(){
+  const {y,m,dates,isCurrent}=getReportMonthRange();
+  const monthLbl=new Date(y,m,1).toLocaleDateString('id-ID',{month:'long',year:'numeric'});
+  const mlEl=$('report-month-label'); if(mlEl) mlEl.textContent=monthLbl.toUpperCase();
+  const rvEl=$('report-viewing-date');
+  if(rvEl) rvEl.textContent = `▸ ${dates.length} hari · ${monthLbl}${isCurrent?' (s/d hari ini)':''}`;
+  const hist=S.history||[];const pl=hist.filter(h=>dates.includes(h.date));const dl=pl.filter(h=>h.status==='done');
+  const activeHabitsCount=S.habits.filter(h=>!h.archived).length;
+  const rate=dates.length>0&&activeHabitsCount>0?Math.round(dl.length/(dates.length*Math.max(1,activeHabitsCount))*100):0;
+  const xpE=dl.reduce((s,h)=>s+(h.xp||10),0);const actD=[...new Set(dl.map(h=>h.date))].length;
+  const best=S.habits.reduce((mx,h)=>Math.max(mx,h.bestStreak||0),0);
+  const kc=$('report-key-stats');
+  if(kc)kc.innerHTML=[{v:dl.length,l:'Done',c:'yellow'},{v:rate+'%',l:'Rate',c:'pink'},{v:xpE,l:'XP',c:'cyan'},{v:actD,l:'Active Days',c:'lime'},{v:activeHabitsCount,l:'Habits',c:'orange'},{v:best,l:'Best Streak',c:'purple'}].map(s=>`<div class="report-stat stat-card ${s.c}"><div class="rs-val">${s.v}</div><div class="rs-lbl">${s.l}</div></div>`).join('');
+  const CC=['#0057FF','#7B2FBE','#FF3CAC','#FF6B00','#FFE600','#AAFF00','#00F5D4'];
+  const ch=$('report-chart'),chl=$('report-chart-labels');
+  if(ch){
+    const mx=Math.max(1,S.habits.filter(h=>!h.archived).length);
+    ch.innerHTML=dates.map((ds,i)=>{const cnt=hist.filter(h=>h.date===ds&&h.status==='done').length;const ht=Math.max(cnt?3:2,Math.min(88,Math.round(cnt/mx*88)));return `<div class="bar-col"><div class="bar-fill" style="height:${ht}px;max-height:88px;background:${CC[i%CC.length]};"></div></div>`;}).join('');
+    if(chl)chl.innerHTML=dates.map(ds=>{const d=new Date(ds+'T12:00:00');return `<div class="chart-day-lbl">${d.getDate()}</div>`;}).join('');
+  }
+  if(typeof renderReportWaterChart==='function') renderReportWaterChart(dates);
+  if(typeof renderReportSleepChart==='function') renderReportSleepChart(dates);
+  const mc=$('mood-correlation-card');
+  if(mc){
+    const md=S.moodLog||{};const corr=dates.map(ds=>{const m=md[ds];const cnt=hist.filter(h=>h.date===ds&&h.status==='done').length;const mx2=Math.max(1,S.habits.filter(h=>!h.archived).length);return{date:ds,mood:m?.mood||0,energy:m?.energy||0,completion:Math.round(cnt/mx2*100)};}).filter(d=>d.mood>0);
+    if(corr.length<2){mc.innerHTML=`<div style="font-size:10px;color:var(--sub);">Complete more mood check-ins to see correlation (${corr.length} day${corr.length!==1?'s':''} so far, need 2+).</div>`;}
+    else{
+      const hi=corr.filter(d=>d.mood>=4);const lo=corr.filter(d=>d.mood<=2);
+      const avgHi=hi.length?Math.round(hi.reduce((s,d)=>s+d.completion,0)/hi.length):0;
+      const avgLo=lo.length?Math.round(lo.reduce((s,d)=>s+d.completion,0)/lo.length):0;
+      const diff=avgHi-avgLo;
+      mc.innerHTML=`<div style="font-family:sans-serif;font-weight:900;font-size:11px;margin-bottom:8px;">MOOD × COMPLETION <span style="font-size:9px;font-family:var(--font-mono, monospace);color:var(--sub);">(${corr.length} days)</span></div>
+      <div style="display:flex;gap:11px;margin-bottom:9px;">
+        <div style="flex:1;text-align:center;"><div style="font-family:sans-serif;font-weight:900;font-size:20px;color:var(--lime)">${avgHi}%</div><div style="font-size:8px;color:var(--sub);">On 😊🔥 days</div></div>
+        <div style="flex:1;text-align:center;"><div style="font-family:sans-serif;font-weight:900;font-size:20px;color:var(--red)">${avgLo}%</div><div style="font-size:8px;color:var(--sub);">On 😫😕 days</div></div>
+        <div style="flex:1;text-align:center;"><div style="font-family:sans-serif;font-weight:900;font-size:20px;color:${diff>0?'var(--lime)':'var(--red)'}">${diff>0?'+':''}${diff}%</div><div style="font-size:8px;color:var(--sub);">Difference</div></div>
+      </div>
+      <div style="display:flex;gap:2px;align-items:flex-end;height:44px;">${corr.slice(-14).map(d=>`<div style="flex:1;height:${d.completion}%;max-height:44px;min-height:2px;background:${['','#FF1744','#FF6B00','#FFE600','#AAFF00','#00F5D4'][d.mood]||'#eee'};border:1px solid var(--bc);" title="${d.date}: mood ${MOOD_EMOJIS[d.mood]}, ${d.completion}%"></div>`).join('')}</div>`;
+    }
+  }
+  // Habit Performance — dipisah daily/weekly/monthly
+  const DAILY_FREQS_RP=['daily','weekdays','weekends','3x/week'];
+  const activeH=S.habits.filter(h=>!h.archived);
+  const fireHtml=`<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round"><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 01-7 7"/></svg>`;
+  const starHtml=`<svg viewBox="0 0 24 24" width="10" height="10" fill="var(--yellow)" stroke="var(--yellow)" stroke-width="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+  function buildPerfRow(h) {
+    const hl=pl.filter(l=>l.habitId===h.id&&l.status==='done');
+    const r=Math.min(100,Math.round(hl.length/Math.max(1,dates.length)*100));
+    const ic=HABIT_ICONS.find(x=>x.id===h.icon)||HABIT_ICONS[0];
+    const iconHtml=`<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="${h.color}" stroke-width="2" stroke-linecap="round">${ic.svg}</svg>`;
+    return `<tr><td style="display:flex;align-items:center;gap:5px;">${iconHtml} ${h.name}</td><td><strong>${r}%</strong></td><td>${hl.length}</td><td style="color:var(--orange)">${fireHtml}${h.streak||0}</td><td>${h.bestStreak||0}</td><td style="color:var(--orange)">${starHtml}${(h.totalDone||0)*10}</td></tr>`;
+  }
+  const emptyRow=`<tr><td colspan="6" style="text-align:center;color:var(--sub);padding:10px;font-size:9px;">Tidak ada</td></tr>`;
+  const pbd=$('perf-body-daily');
+  if(pbd){const dh=activeH.filter(h=>DAILY_FREQS_RP.includes(h.freq||'daily'));pbd.innerHTML=dh.map(buildPerfRow).join('')||emptyRow;}
+  const pbw=$('perf-body-weekly');
+  if(pbw){const wh=activeH.filter(h=>h.freq==='weekly');pbw.innerHTML=wh.map(buildPerfRow).join('')||emptyRow;}
+  const pbm=$('perf-body-monthly');
+  if(pbm){const mh=activeH.filter(h=>h.freq==='monthly');pbm.innerHTML=mh.map(buildPerfRow).join('')||emptyRow;}
+  // legacy fallback if old perf-body still exists
+  const pb=$('perf-body');
+  if(pb) pb.innerHTML='';
+  const cb=$('cat-breakdown');
+  if(cb){
+    const ah=S.habits.filter(h=>!h.archived);
+    const cm={};ah.forEach(h=>{cm[h.category]=(cm[h.category]||0)+1;});
+    const tot=ah.length||1;
+    const svgIcon=(svgPath,color)=>`<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round">${svgPath}</svg>`;
+    cb.innerHTML=Object.entries(cm).map(([cat,cnt])=>{
+      const c=CATS[cat]||CATS.custom;
+      const p=Math.round(cnt/tot*100);
+      const icSvg=c.svg?svgIcon(c.svg,c.color):'';
+      return `<div class="cat-bar-row"><div class="cat-bar-meta"><span style="display:flex;align-items:center;gap:4px;">${icSvg} ${c.label}</span><span>${cnt} (${p}%)</span></div><div class="cat-bar-track"><div class="cat-bar-fill" style="width:${p}%;background:${c.color}"></div></div></div>`;
+    }).join('')||'<div style="font-size:10px;color:var(--sub);">No habits</div>';
+  }
+  const hg=$('heatmap-grid');
+  if(hg){const tod=new Date();const cells=[];for(let w=25;w>=0;w--){for(let d=0;d<7;d++){const dt=new Date(tod);dt.setDate(dt.getDate()-(w*7+(tod.getDay()-d)));const ds=dt.toISOString().split('T')[0];const cnt=hist.filter(h=>h.date===ds&&h.status==='done').length;const lv=cnt===0?0:cnt<2?1:cnt<4?2:cnt<6?3:4;cells.push(`<div class="hm-cell l${lv}" title="${ds}:${cnt}"></div>`);}}hg.innerHTML=cells.join('');}
+}
+
+// ── SHARE + DNA ─────────────────────────────────────────────
+function renderShare(){
+  setTxt('sc-name',(S.name||'USER').toUpperCase());setTxt('sc-date',todayStr());
+  const done=S.habits.filter(h=>h.completedToday&&!h.archived).length;const best=S.habits.filter(h=>!h.archived).reduce((m,h)=>Math.max(m,h.bestStreak||0),0);
+  setTxt('sc-done',done);setTxt('sc-streak',best);setTxt('sc-xp-val',S.xp||0);
+  const hr=$('sc-habits-row');if(hr)hr.innerHTML=S.habits.filter(h=>h.completedToday&&!h.archived).map(h=>`<div class="sc-habit-chip">${h.icon} ${h.name}</div>`).join('');
+}
+function copyShareText(){
+  const done=S.habits.filter(h=>h.completedToday&&!h.archived).length;const best=S.habits.filter(h=>!h.archived).reduce((m,h)=>Math.max(m,h.bestStreak||0),0);
+  const ht=S.habits.filter(h=>h.completedToday).map(h=>`${h.icon} ${h.name}`).join(', ');
+  const txt=`🦁 OHT v4 — ${todayStr()}\n👤 ${S.name||'User'}\n✅ ${done}/${S.habits.length} habits\n🔥 ${best} day streak\n⭐ ${S.xp||0} XP${ht?'\n\nDone: '+ht:''}`;
+  navigator.clipboard.writeText(txt).then(()=>toast('📤 Copied!','success')).catch(()=>toast('Copy failed','error'));
+}
+function exportDNA(){
+  const cats={};S.habits.forEach(h=>{cats[h.category]=(cats[h.category]||0)+1;});
+  const topCat=Object.entries(cats).sort((a,b)=>b[1]-a[1])[0];
+  const dna={version:'oht-dna-v1',name:S.name,exportDate:todayStr(),totalXp:S.xp,bestStreak:S.habits.reduce((m,h)=>Math.max(m,h.bestStreak||0),0),totalHabits:S.habits.length,dominantCategory:topCat?topCat[0]:'none',habits:S.habits.map(h=>({name:h.name,icon:h.icon,color:h.color,category:h.category,freq:h.freq,target:h.target,progressive:h.progressive||'none',stack:'',stake:h.stake||'',scheduledTime:h.scheduledTime||'',notes:h.notes||''}))};
+  const blob=new Blob([JSON.stringify(dna,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`oht_dna_${S.name||'user'}_${todayStr()}.json`;a.click();
+  toast('🧬 Habit DNA exported!','success');
+}
+
+// ── DNA IMPORT ─────────────────────────────────────────────
+function dnaFileImport(){
+  const inp=document.createElement('input');inp.type='file';inp.accept='.json';
+  inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{const ta=$('dna-paste-input');if(ta)ta.value=ev.target.result;};r.readAsText(f);};inp.click();
+}
+function applyDNAImport(){
+  const ta=$('dna-paste-input');if(!ta||!ta.value.trim()){toast('Paste DNA JSON first!','error');return;}
+  try{
+    const dna=JSON.parse(ta.value.trim());
+    if(dna.version!=='oht-dna-v1'||!dna.habits){toast('Invalid DNA format!','error');return;}
+    dna.habits.forEach(d=>{S.habits.push({id:'h'+Date.now()+Math.floor(Math.random()*9999),...d,completedToday:false,currentProgress:0,streak:0,bestStreak:0,totalDone:0,weekLog:Array(7).fill(false),monthLog:{},todayXp:0,baseTarget:d.target,createdAt:new Date().toISOString()});});
+    toast(`🧬 ${dna.habits.length} habits imported from ${dna.name||'someone'}!`,'success');
+    ta.value='';updateMissions();save();renderAll();closeModal('modal-dna-import');
+  }catch(e){toast('Invalid JSON!','error');}
+}
+
+// ── AI COACH (using fetch with CORS proxy workaround) ───────
+async function callAI(prompt,maxTokens=200){
+  // Try direct Anthropic API (works if CORS is allowed from claude.ai origin)
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:maxTokens,messages:[{role:'user',content:prompt}]})
+    });
+    if(!res.ok)throw new Error('API error '+res.status);
+    const data=await res.json();
+    return data.content?.map(c=>c.text||'').join('')||'';
+  }catch(e){
+    // Fallback: meaningful static response based on stats
+    const done=S.habits.filter(h=>h.completedToday).length;const total=S.habits.length;const best=S.habits.reduce((m,h)=>Math.max(m,h.bestStreak||0),0);
+    const topH=[...S.habits].sort((a,b)=>(b.streak||0)-(a.streak||0))[0];
+    const weakH=S.habits.filter(h=>!h.completedToday&&isDueToday(h))[0];
+    const fallbacks=[
+      topH?`${topH.icon} ${topH.name} is your strongest habit at ${topH.streak} days. That consistency is real. Now apply the same discipline to ${weakH?weakH.name:'your other habits'}.`:`You have ${total} habits tracked. Consistency beats intensity every time.`,
+      `${done}/${total} done today. ${done===total?'Perfect execution.':done>total/2?'Strong effort. Finish the last few.':'The day isn\'t over yet. Pick one habit and do it now.'}`,
+      best>0?`Your best streak is ${best} days. Streaks don't build themselves — they're built by not stopping.`:'Start your first streak today. Day 1 is the hardest.',
+    ];
+    return fallbacks[Math.floor(Math.random()*fallbacks.length)];
+  }
+}
+
+function typeWriter(el,text,speed=15){
+  el.textContent='';let i=0;
+  const type=()=>{if(i<text.length){el.textContent+=text[i++];setTimeout(type,speed);}};
+  type();
+}
+
+// ── WEEKLY REVIEW ──────────────────────────────────────────
+function openWeeklyReview(){
+  const week=getWeekMon();setTxt('review-week-label',`Week of ${week}`);
+  const dates=[];const d=new Date(week);for(let i=0;i<7;i++){dates.push(d.toISOString().split('T')[0]);d.setDate(d.getDate()+1);}
+  const wl=(S.history||[]).filter(h=>dates.includes(h.date)&&h.status==='done');
+  const actD=[...new Set(wl.map(h=>h.date))].length;
+  const perfD=dates.filter(ds=>{const snap=S.lockedDays&&S.lockedDays[ds];return snap&&snap.length>0&&snap.every(h=>h.completed);}).length;
+  const weekXp=wl.reduce((s,h)=>s+(h.xp||10),0);
+  const rs=$('review-stats');
+  if(rs)rs.innerHTML=[{v:wl.length,l:'Done'},{v:actD+'/7',l:'Active'},{v:perfD,l:'Perfect'},{v:weekXp,l:'XP Earned'},{v:S.freezes||0,l:'Freezes'},{v:S.habits.reduce((m,h)=>Math.max(m,h.bestStreak||0),0),l:'Best Streak'}].map(s=>`<div class="review-stat"><div class="rev-val">${s.v}</div><div class="rev-lbl">${s.l}</div></div>`).join('');
+  const last=S.weeklyReviews?.find(r=>r.week===week);
+  ['review-win','review-hard','review-change'].forEach(id=>{const el=$(id);if(el)el.value=last?last[id.replace('review-','')]||'':'';}); 
+  const air=$('review-ai-result');if(air)air.style.display='none';
+  $('review-overlay').classList.add('open');
+}
+function closeReview(){$('review-overlay').classList.remove('open');}
+function saveReview(){
+  const week=getWeekMon();
+  const win=$('review-win')?.value||'';const hard=$('review-hard')?.value||'';const change=$('review-change')?.value||'';
+  S.weeklyReviews=S.weeklyReviews||[];S.weeklyReviews=S.weeklyReviews.filter(r=>r.week!==week);
+  S.weeklyReviews.unshift({week,date:todayStr(),win,hard,change});
+  if(S.weeklyReviews.length>52)S.weeklyReviews=S.weeklyReviews.slice(0,52);
+  save();closeReview();toast('📋 Review saved! +1 ❄','success');earnFreeze(1,'Weekly Review completed');
+}
+async function getAIReviewInsight(){
+  const win=$('review-win')?.value||'';const hard=$('review-hard')?.value||'';const change=$('review-change')?.value||'';
+  if(!win&&!hard&&!change){toast('Fill at least one field first!','error');return;}
+  toast('🦁 Getting AI insight...','info');
+  const wl=(S.history||[]).filter(h=>{const diff=(Date.now()-new Date(h.date))/(864e5);return diff<=7&&h.status==='done';});
+  const prompt=`OHT COACH doing weekly review for ${S.name||'User'}. Concise. Max 4 sentences.\n\nWeek data: ${wl.length} completions, habits: ${S.habits.map(h=>`${h.name}(🔥${h.streak||0})`).slice(0,6).join(', ')||'none'}\nWent well: "${win}"\nWas hard: "${hard}"\nTo change: "${change}"\n\nOne insight connecting their reflection to their data. One specific next-week action.`;
+  const text=await callAI(prompt,200);
+  const air=$('review-ai-result');if(air){air.style.display='block';typeWriter(air,text,12);}
+  addInsight(`Weekly Review insight: ${text}`,'WEEKLY REVIEW');save();
+}
+
+function openModal(id){
+  const ov=$(id);if(!ov)return;
+  ov.classList.add('open');
+}
+function closeModal(id){$(id).classList.remove('open');}
+
+// ── DRAG & DROP ────────────────────────────────────────────
+let dragId=null;
+function dragStart(e,id,pfx){dragId=id;e.dataTransfer.effectAllowed='move';setTimeout(()=>{[`hc-${id}`,`th-${id}`].forEach(cid=>{const c=$(cid);if(c)c.classList.add('dragging');});},0);}
+function dragOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';e.currentTarget.classList.add('drag-over');}
+function dragLeave(e){e.currentTarget.classList.remove('drag-over');}
+function dragEnd(){document.querySelectorAll('.habit-card').forEach(c=>c.classList.remove('dragging','drag-over'));}
+function dragDrop(e,targetId){e.preventDefault();e.currentTarget.classList.remove('drag-over');if(!dragId||dragId===targetId)return;const fi=S.habits.findIndex(h=>h.id===dragId);const ti=S.habits.findIndex(h=>h.id===targetId);if(fi===-1||ti===-1)return;const[moved]=S.habits.splice(fi,1);S.habits.splice(ti,0,moved);dragId=null;save();renderAll();}
+
+// ── ADD/EDIT HABIT ─────────────────────────────────────────
+function openAddModal(){resetForm();populateStackPicker('');updateProgDifficultyVisibility();openModal('modal-add');setTimeout(()=>{const n=$('inp-name');if(n)n.focus();},300);}
+function resetForm(){
+  $('edit-id').value='';$('inp-name').value='';
+  const _notes=$('inp-notes');if(_notes)_notes.value='';
+  $('inp-target').value='1';
+  $('inp-freq').value='daily';
+  const _stake=$('inp-stake');if(_stake)_stake.value='';
+  const pt=$('inp-time');if(pt)pt.value='';
+  const pp=$('inp-prog');if(pp)pp.value='none';
+  $('sel-emoji').value='⭐';$('sel-color').value=COLORS[0];
+  document.querySelectorAll('.emoji-opt').forEach((e,i)=>e.classList.toggle('sel',i===0));
+  document.querySelectorAll('.color-opt').forEach((e,i)=>e.classList.toggle('sel',i===0));
+  document.querySelectorAll('.freq-btn').forEach((e,i)=>e.classList.toggle('sel',i===0));
+  // Reset custom-select triggers to their defaults
+  const progCfg=SELECT_CONFIGS.prog.options.find(o=>o.value==='none');
+  const progT=$('trigger-prog');
+  if(progT&&progCfg){const i=progT.querySelector('.cst-icon');const l=progT.querySelector('.cst-label');if(i)i.innerHTML=`<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">${progCfg.svg}</svg>`;if(l)l.textContent=progCfg.label;}
+  const tv=$('time-trigger-val');if(tv)tv.textContent='Tap to set time';
+  $('modal-title').textContent='ADD NEW HABIT';
+}
+function updateProgDifficultyVisibility(){
+  const freq=$('inp-freq');const pg=$('prog-difficulty-group');
+  if(pg&&freq)pg.style.display=DAILY_FREQS.includes(freq.value)?'block':'none';
+}
+function saveHabit(){
+  const name=$('inp-name').value.trim();if(!name){toast('Enter a habit name!','error');return;}
+  const editId=$('edit-id').value;
+  const progressive=$('inp-prog')?.value||'none';
+  const data={name,icon:$('sel-emoji').value,color:$('sel-color').value,category:$('inp-cat')?.value||'health',freq:$('inp-freq').value,target:parseInt($('inp-target').value)||1,notes:$('inp-notes').value,progressive,stack:$('inp-stack')?.value||'',stake:$('inp-stake')?.value||'',scheduledTime:$('inp-time')?.value||'',difficulty:$('inp-difficulty')?.value||'medium'};
+  if(editId){const h=S.habits.find(x=>x.id===editId);if(h){Object.assign(h,data);if(data.progressive!=='none')h.baseTarget=h.baseTarget||data.target;}toast(`"${name}" updated!`,'info');}
+  else{S.habits.push({id:'h'+Date.now(),...data,completedToday:false,currentProgress:0,streak:0,bestStreak:0,totalDone:0,weekLog:Array(7).fill(false),monthLog:{},todayXp:0,baseTarget:data.target,createdAt:new Date().toISOString()});toast(`"${name}" added!`,'success');}
+  _invalidateStrengthCache();updateMissions();save();renderAll();closeModal('modal-add');
+}
+function editHabit(id){
+  const h=S.habits.find(x=>x.id===id);if(!h)return;
+  $('edit-id').value=id;$('inp-name').value=h.name;$('inp-notes').value=h.notes||'';$('inp-target').value=h.target||1;$('inp-freq').value=h.freq||'daily';$('sel-emoji').value=h.icon;$('sel-color').value=h.color;
+  if($('inp-stake'))$('inp-stake').value=h.stake||'';if($('inp-prog'))$('inp-prog').value=h.progressive||'none';if($('inp-time'))$('inp-time').value=h.scheduledTime||'';
+  // Select emoji by id (SVG-based picker)
+  document.querySelectorAll('.emoji-opt').forEach(e=>e.classList.toggle('sel',(e.getAttribute('onclick')||'').includes(`'${h.icon}'`)));
+  document.querySelectorAll('.color-opt').forEach(e=>e.classList.toggle('sel',(e.getAttribute('onclick')||'').includes(h.color)));
+  document.querySelectorAll('.freq-btn').forEach(e=>e.classList.toggle('sel',(e.getAttribute('onclick')||'').includes(`'${h.freq||'daily'}'`)));
+  // Sync SVG triggers
+  const progCfg=SELECT_CONFIGS.prog.options.find(o=>o.value===(h.progressive||'none'));
+  const progT=$('trigger-prog');
+  if(progT&&progCfg){const i=progT.querySelector('.cst-icon');const l=progT.querySelector('.cst-label');if(i)i.innerHTML=progCfg.svg?`<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">${progCfg.svg}</svg>`:progCfg.icon||'';if(l)l.textContent=progCfg.label;}
+  // Sync time trigger
+  const tv=$('time-trigger-val');if(tv)tv.textContent=h.scheduledTime||'Tap to set time';
+  $('modal-title').textContent='EDIT HABIT';
+  updateProgDifficultyVisibility();openModal('modal-add');
+}
+
+// ── PICKERS ────────────────────────────────────────────────
+function selEmoji(el,e){document.querySelectorAll('.emoji-opt').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');$('sel-emoji').value=e;}
+function selColor(el,c){document.querySelectorAll('.color-opt').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');$('sel-color').value=c;}
+function selFreq(el,f){document.querySelectorAll('.freq-btn').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');$('inp-freq').value=f;updateProgDifficultyVisibility();}
+
+
+// ── NAVIGATION ─────────────────────────────────────────────
+function navigate(page){
+  // 1. Set all pages inactive
+  document.querySelectorAll('.page').forEach(p=>{
+    p.classList.remove('active');
+  });
+  document.querySelectorAll('.bnav-item').forEach(n=>n.classList.remove('active'));
+
+  // 2. Set target page active
+  const pg=$('page-'+page);
+  if(!pg){ return; }
+  pg.classList.add('active');
+
+  // 3. Nav highlight
+  const mainPages=['habits','wellness','friends'];
+  if(mainPages.includes(page)){
+    const nb=$('bnav-'+page);if(nb)nb.classList.add('active');
+    const bm=$('bnav-more');if(bm)bm.classList.remove('active');
+  } else {
+    const bm=$('bnav-more');if(bm)bm.classList.add('active');
+  }
+
+  // 4. Scroll reset
+  const ms=$('main-scroll');
+  if(ms) ms.scrollTop=0;
+
+  // 5. Page-specific extra init
+  if(page==='calendar'){calYear=new Date().getFullYear();calMonth=new Date().getMonth();}
+  if(page==='focus'){buildFocusHabitPicker();updateFocusUI();if(typeof updateSWDisplay==='function')updateSWDisplay();}
+  if(page==='nutrition'){initNutritionPage();}
+  if(page==='streaks'){if(typeof renderWellnessStreakCards==='function')renderWellnessStreakCards();}
+  if(page==='journal'){initJournalPage();}
+  if(page==='report'){_reportViewDate=null;initReportPage();}
+  if(page==='wellness'){initWellnessPage();}
+  if(page==='profile'){initProfilePage();}
+  if(page==='friends'){initFriendsPage();}
+  if(page==='settings'){if(typeof renderSettingsAuth==='function') setTimeout(renderSettingsAuth,100);}
+  if(page==='jadwal'){initJadwalPage();}
+
+  // 6. Render - small timeout to ensure DOM paint completes
+  setTimeout(function(){
+    renderAll();
+    if(ms) ms.scrollTop=0;
+  }, 0);
+}
+
+// ── SORT & FILTER ───────────────────────────────────────────
+function setHabitsCatFilter(val,el){S.habitsCatFilter=val;document.querySelectorAll('#habits-cat-tabs .ctab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderAllHabits();}
+
+// ── DARK MODE (FIX: proper icon sync) ──────────────────────
+// ── ONBOARDING ─────────────────────────────────────────────
+function showOnboarding(){$('onboarding').classList.add('open');}
+function obNext(step){if(step<0)return;if(step===2){const n=$('ob-name-input').value.trim();if(n)S.name=n;}document.querySelectorAll('.onboard-step').forEach((s,i)=>s.classList.toggle('active',i===step));document.querySelectorAll('.onboard-dot').forEach((d,i)=>d.classList.toggle('active',i===step));}
+function obFinish(){const n=$('ob-name-input').value.trim();if(n)S.name=n;S.onboardDone=true;S.freezes=3;S.freezeLog=[{date:todayStr(),reason:'Welcome gift',earned:3,used:false}];$('onboarding').classList.remove('open');save();renderAll();restoreMoodUI();toast(`🦁 Welcome, ${S.name}! You got 3 ❄ freezes!`,'success');}
+
+// ── SETTINGS ───────────────────────────────────────────────
+function saveName(){const n=$('st-name').value.trim();if(!n)return;S.name=n;save();renderStats();toast('👤 Name saved!','success');}
+function exportData(){const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`oht_${todayStr()}.json`;a.click();toast('📥 Exported!','success');}
+function importData(){const inp=document.createElement('input');inp.type='file';inp.accept='.json';inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);Object.assign(S,d);save();renderAll();toast('📤 Imported!','success');}catch{toast('❌ Invalid file','error');}};r.readAsText(f);};inp.click();}
+function resetAll(){if(!confirm('DELETE ALL DATA?'))return;localStorage.removeItem('hb_v5');location.reload();}
+
+// ── TOAST / CONFETTI ───────────────────────────────────────
+function toast(msg,type='info'){const tc=$('toast-container');if(!tc)return;const t=document.createElement('div');t.className=`toast ${type}`;t.innerHTML=typeof msg==='string'?msg:msg;tc.appendChild(t);setTimeout(()=>{t.classList.add('removing');setTimeout(()=>t.remove(),320);},2600);}
+function confetti(n){const CC=['#FFE600','#FF3CAC','#00F5D4','#AAFF00','#FF6B00','#0057FF'];for(let i=0;i<n;i++){setTimeout(()=>{const el=document.createElement('div');el.className='confetti-piece';el.style.cssText=`left:${Math.random()*100}vw;top:-10px;background:${CC[i%CC.length]};animation-duration:${.8+Math.random()*.8}s;animation-delay:${Math.random()*.2}s;width:${5+Math.random()*7}px;height:${5+Math.random()*7}px;border-radius:${Math.random()>.5?'50%':'0'};`;document.body.appendChild(el);setTimeout(()=>el.remove(),2000);},i*35);}}
+
+// ── START ──────────────────────────────────────────────────
+init();
+
+
+
+// ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+
+function getCompletedForDate(dateStr) {
+  const today = todayStr();
+  if (dateStr === today) {
+    const active = S.habits.filter(h => !h.archived);
+    return { done: active.filter(h => h.completedToday).length, total: active.length };
+  }
+  // Past: use lockedDays or history
+  const snap = S.lockedDays && S.lockedDays[dateStr];
+  if (snap) {
+    return { done: snap.filter(s => s.completed).length, total: snap.length };
+  }
+  // Fallback: unique habits from history on that date
+  const hist = (S.history || []).filter(h => h.date === dateStr && h.status === 'done');
+  const unique = [...new Set(hist.map(h => h.habitId))].length;
+  return { done: unique, total: Math.max(unique, S.habits.length) };
+}
+
+// ════════════════════════════════════════════════════════════
+// CALENDAR PAGE
+// ════════════════════════════════════════════════════════════
+var calYear = new Date().getFullYear();
+var calMonth = new Date().getMonth();
+
+function renderCalendar() {
+  const grid = $('cal-days-grid');
+  if (!grid) return;
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  setTxt('cal-month-lbl', `${(months[calMonth]||'JAN').toUpperCase().slice(0,3)} ${calYear}`);
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = new Date();
+  const todayY = today.getFullYear(), todayM = today.getMonth(), todayD = today.getDate();
+  // Prev month days
+  const prevDays = new Date(calYear, calMonth, 0).getDate();
+
+  let html = '';
+  // Empty cells before
+  for (let i = 0; i < firstDay; i++) {
+    html += `<div class="cal-day other-month"><div class="cal-day-num" style="color:#ccc">${prevDays - firstDay + i + 1}</div></div>`;
+  }
+  // Days of month
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = d === todayD && calMonth === todayM && calYear === todayY;
+    const isFuture = new Date(calYear, calMonth, d) > today;
+    const { done, total } = getCompletedForDate(dateStr);
+    const dotClass = isFuture ? 'none' : (total > 0 && done >= total) ? 'perfect' : (done > 0) ? 'partial' : 'none';
+    const moodEntry = S.moodLog && S.moodLog[dateStr];
+    const MOOD_E = ['','😫','😕','😐','😊','🔥'];
+    const moodHtml = (!isFuture && moodEntry?.mood) ? `<div style="font-size:8px;line-height:1;">${MOOD_E[moodEntry.mood]}</div>` : '';
+    const _onclick = isFuture ? '' : " openDayDetail('" + dateStr + "')";
+    html += `<div class="cal-day${isToday?' today-day':''}" onclick="${_onclick}">
+      <div class="cal-day-num">${d}</div>
+      <div class="cal-dot ${dotClass}"></div>
+      ${moodHtml}
+    </div>`;
+  }
+  // Fill remaining cells
+  const totalCells = firstDay + daysInMonth;
+  const remaining = (7 - (totalCells % 7)) % 7;
+  for (let i = 1; i <= remaining; i++) {
+    html += `<div class="cal-day other-month"><div class="cal-day-num" style="color:#ccc">${i}</div></div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function calPrev() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); }
+function calNext() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
+
+function openDayDetail(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  setTxt('day-detail-title', `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`);
+
+  const body = $('day-detail-body');
+  if (!body) return;
+
+  const today = todayStr();
+  let doneHabits = [];
+
+  if (dateStr === today) {
+    doneHabits = S.habits.filter(h => h.completedToday).map(h => ({ icon: h.icon, name: h.name, xp: h.todayXp || 10, category: h.category }));
+  } else {
+    const snap = S.lockedDays && S.lockedDays[dateStr];
+    if (snap) {
+      doneHabits = snap.filter(s => s.completed).map(s => ({ icon: s.habitIcon || '📌', name: s.habitName, xp: s.xpEarned || 10, category: s.category }));
+    } else {
+      const hist = (S.history || []).filter(h => h.date === dateStr && h.status === 'done');
+      const seen = new Set();
+      hist.forEach(h => { if (!seen.has(h.habitId)) { seen.add(h.habitId); doneHabits.push({ icon: h.habitIcon || '📌', name: h.habitName, xp: h.xp || 10, category: h.category }); } });
+    }
+  }
+
+  const moodEntry = S.moodLog && S.moodLog[dateStr];
+  const MOOD_E2 = ['','😫','😕','😐','😊','🔥'];
+  const moodSection = moodEntry ? `<div style="display:flex;gap:9px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bg);margin-bottom:7px;">
+    <span style="font-family:var(--font-mono, monospace);font-size:8px;color:var(--sub);">MOOD</span>
+    <span style="font-size:16px;">${MOOD_E2[moodEntry.mood||0]||'—'}</span>
+    <span style="font-family:var(--font-mono, monospace);font-size:8px;color:var(--sub);">ENERGY</span>
+    <span style="font-family:sans-serif;font-weight:900;font-size:13px;color:var(--cyan);">${moodEntry.energy||0}/5</span>
+    <div style="display:flex;gap:2px;">${Array.from({length:5},(_,i)=>`<div style="width:6px;height:6px;border:1.5px solid ${i<(moodEntry.energy||0)?'var(--lime)':'#444'};background:${i<(moodEntry.energy||0)?'var(--lime)':'transparent'};"></div>`).join('')}</div>
+  </div>` : '';
+  if (!doneHabits.length) {
+    body.innerHTML = moodSection + `<div class="cal-empty-day">No habits completed on this day.</div>`;
+  } else {
+    const totalXp = doneHabits.reduce((s, h) => s + (h.xp || 10), 0);
+    const ic_fn = (icon, color) => { const ic=HABIT_ICONS.find(x=>x.id===icon)||HABIT_ICONS[0]; return `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="${color||'currentColor'}" stroke-width="2" stroke-linecap="round">${ic.svg}</svg>`; };
+    body.innerHTML = moodSection + `<div style="font-family:var(--font-mono, monospace);font-size:8px;color:var(--sub);margin-bottom:9px;">${doneHabits.length} habit${doneHabits.length!==1?'s':''} · +${totalXp} XP</div>`
+      + doneHabits.map(h => `<div class="cal-detail-habit">${ic_fn(h.icon, h.color||'currentColor')}<span class="cdh-name">${h.name}</span><span class="cdh-xp">+${h.xp} XP</span></div>`).join('');
+  }
+
+  $('day-detail-overlay').classList.add('open');
+
+  // Also update cal-detail panel if on calendar page
+  const cd = $('cal-detail');
+  if (cd) {
+    if (!doneHabits.length) {
+      cd.innerHTML = `<div class="cal-detail-date">${dateStr}</div><div class="cal-empty-day">No habits completed on this day.</div>`;
+    } else {
+      const totalXp = doneHabits.reduce((s, h) => s + (h.xp || 10), 0);
+      cd.innerHTML = `<div class="cal-detail-date">${dateStr}</div><div style="font-family:var(--font-mono, monospace);font-size:8px;color:var(--sub);margin-bottom:9px;">${doneHabits.length} habit${doneHabits.length!==1?'s':''} completed · +${totalXp} XP</div>`
+        + doneHabits.map(h => `<div class="cal-detail-habit"><span class="cdh-icon">${h.icon}</span><span class="cdh-name">${h.name}</span><span class="cdh-xp">+${h.xp} XP</span></div>`).join('');
+    }
+  }
+}
+function closeDayDetail() { $('day-detail-overlay').classList.remove('open'); }
+
+// ════════════════════════════════════════════════════════════
+// FOCUS TIMER (Pomodoro)
+// ════════════════════════════════════════════════════════════
+// focusState declared at top of script
+
+function setFocusDur(mins) { if (focusState.running) return; focusState.workDur = mins * 60; if (!focusState.isBreak) { focusState.remaining = focusState.total = mins * 60; } updateFocusUI(); }
+function setFocusBreak(mins) { focusState.breakDur = mins * 60; }
+function linkFocusHabit(id) { focusState.linkedHabit = id; }
+
+// FIX: input bebas H:MM:SS untuk focus timer
+function applyFocusDurInput() {
+  if (focusState.running) return;
+  const h = parseInt($('focus-inp-hours')?.value) || 0;
+  const m = parseInt($('focus-inp-mins')?.value)  || 0;
+  const s = parseInt($('focus-inp-secs')?.value)  || 0;
+  const total = h * 3600 + m * 60 + s;
+  if (total <= 0) return;
+  focusState.workDur = total;
+  if (!focusState.isBreak) { focusState.remaining = focusState.total = total; }
+  // Update ring dan display tanpa menyentuh input (hindari loop)
+  const timerEl = $('focus-timer');
+  if (timerEl) {
+    const hrs2 = Math.floor(total/3600), mins2 = Math.floor((total%3600)/60), secs2 = total%60;
+    timerEl.textContent = hrs2 > 0
+      ? `${hrs2}:${String(mins2).padStart(2,'0')}:${String(secs2).padStart(2,'0')}`
+      : `${String(mins2).padStart(2,'0')}:${String(secs2).padStart(2,'0')}`;
+  }
+  const ring = $('focus-ring-circle');
+  if (ring) { ring.style.strokeDashoffset = 0; ring.style.stroke = 'var(--yellow)'; }
+}
+function buildFocusHabitPicker() {
+  const sel = $('focus-habit-link'); if (!sel) return;
+  sel.innerHTML = '<option value="">— none —</option>' + S.habits.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
+}
+function openFocusHabitPicker() {
+  // Build custom dropdown for focus habit link
+  SELECT_CONFIGS._focus = {
+    title: 'LINK TO HABIT',
+    options: [
+      {value:'', svg:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>', label:'— None —', sub:'No habit linked'},
+      ...S.habits.filter(h=>!h.archived&&!h.paused).map(h=>{
+        const ic = HABIT_ICONS.find(x=>x.id===h.icon)||HABIT_ICONS[0];
+        return {value:h.id, svg:ic.svg, label:h.name, sub:`${h.freq} · 🔥${h.streak||0} streak`};
+      })
+    ]
+  };
+  const curVal = $('focus-habit-link')?.value||'';
+  setTxt('csd-title','LINK HABIT TO FOCUS');
+  const opts=$('csd-options');
+  if(opts){
+    opts.innerHTML = SELECT_CONFIGS._focus.options.map((o,idx)=>{
+      const svgHtml=`<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">${o.svg}</svg>`;
+      return `<div class="csd-option${o.value===curVal?' selected':''}" data-fhi="${idx}" onclick="selectFocusHabitByIdx(this)">
+        <div class="csd-option-icon">${svgHtml}</div>
+        <div style="flex:1;"><div class="csd-option-label">${o.label}</div><div class="csd-option-sub">${o.sub}</div></div>
+        <div class="csd-check"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><polyline points="20 6 9 17 4 12"/></svg></div>
+      </div>`;
+    }).join('');;
+  }
+  const bd=$('csd-backdrop');const dd=$('custom-select-dropdown');
+  if(bd)bd.style.display='block';
+  if(dd)setTimeout(()=>dd.classList.add('open'),10);
+}
+function selectFocusHabitByIdx(el) {
+  const idx = parseInt(el.dataset.fhi);
+  const o = (SELECT_CONFIGS._focus?.options||[])[idx]; if(!o) return;
+  selectFocusHabit(o.value, o.svg, o.label);
+}
+function selectFocusHabit(id, svg, label) {
+  const sel=$('focus-habit-link');if(sel)sel.value=id;
+  focusState.linkedHabit=id;
+  const trigger=$('focus-habit-trigger');
+  if(trigger){
+    const ico=trigger.querySelector('.cst-icon');
+    const lbl=trigger.querySelector('#focus-habit-label');
+    if(ico)ico.innerHTML=svg?`<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round">${svg}</svg>`:'';
+    if(lbl)lbl.textContent=label||'— none —';
+  }
+  closeCustomSelect();
+}
+function toggleFocus() {
+  if (focusState.running) {
+    clearInterval(focusState.interval); focusState.running = false;
+  } else {
+    focusState.running = true;
+    focusState.interval = setInterval(focusTick, 1000);
+  }
+  updateFocusUI();
+}
+function focusTick() {
+  focusState.remaining--;
+  if (focusState.remaining <= 0) {
+    clearInterval(focusState.interval); focusState.running = false;
+    if (!focusState.isBreak) {
+      focusState.sessions++;
+      playSound('perfect');
+      toast(`⏱ Focus session done! ${focusState.sessions} today 🔥`, 'success');
+      if (focusState.sessions % 4 === 0) {
+        toast('💪 4 sessions! Take a long break.', 'info');
+      }
+      // Save to state
+      S.focusSessions = S.focusSessions || {};
+      S.focusSessions[todayStr()] = (S.focusSessions[todayStr()] || 0) + 1;
+      save();
+      // Start break
+      focusState.isBreak = true;
+      focusState.remaining = focusState.total = focusState.breakDur;
+    } else {
+      focusState.isBreak = false;
+      focusState.remaining = focusState.total = focusState.workDur;
+      playSound('tick');
+    }
+    focusState.interval = setInterval(focusTick, 1000);
+    focusState.running = true;
+  }
+  updateFocusUI();
+}
+function resetFocus() {
+  clearInterval(focusState.interval); focusState.running = false; focusState.isBreak = false;
+  focusState.remaining = focusState.total = focusState.workDur;
+  updateFocusUI();
+}
+
+// Pause focus timer when app goes to background
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && focusState.running) {
+    focusState._pausedAt = Date.now();
+  } else if (!document.hidden && focusState.running && focusState._pausedAt) {
+    const elapsed = Math.floor((Date.now() - focusState._pausedAt) / 1000);
+    focusState.remaining = Math.max(0, focusState.remaining - elapsed);
+    focusState._pausedAt = null;
+    updateFocusUI();
+    if (focusState.remaining <= 0) { clearInterval(focusState.interval); focusTick(); }
+  }
+});
+function updateFocusUI() {
+  const totalSecs = focusState.remaining;
+  const hrs  = Math.floor(totalSecs / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
+  const secs = totalSecs % 60;
+  // Tampilkan H:MM:SS kalau ada jam, MM:SS kalau tidak
+  const disp = hrs > 0
+    ? `${hrs}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`
+    : `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+  const timerEl = $('focus-timer');
+  if (timerEl) {
+    timerEl.textContent = disp;
+    timerEl.className = 'focus-timer-display' + (focusState.running ? (focusState.isBreak ? ' break' : ' running') : '');
+  }
+  const lbl = $('focus-mode-lbl');
+  if (lbl) lbl.textContent = focusState.isBreak ? '☕ BREAK TIME' : 'FOCUS SESSION';
+  const btn = $('focus-start-btn');
+  if (btn) btn.textContent = focusState.running ? '⏸ PAUSE' : '▶ START';
+  // Ring — idle pakai var(--yellow) supaya ikut accent theme
+  const ring = $('focus-ring-circle');
+  if (ring) {
+    const pct = focusState.remaining / focusState.total;
+    const circ = 2 * Math.PI * 70;
+    ring.style.strokeDashoffset = circ * (1 - pct);
+    ring.style.stroke = focusState.isBreak ? 'var(--orange)' : focusState.running ? 'var(--lime)' : 'var(--yellow)';
+  }
+  const sc = $('focus-sessions');
+  const todaySessions = (S.focusSessions && S.focusSessions[todayStr()]) || focusState.sessions;
+  if (sc) sc.textContent = `${todaySessions} session${todaySessions !== 1 ? 's' : ''} today`;
+  // Sync input fields saat tidak running (supaya input selalu terbaca akurat)
+  if (!focusState.running) {
+    const ih = $('focus-inp-hours'); const im = $('focus-inp-mins'); const is_ = $('focus-inp-secs');
+    if (ih) ih.value = hrs;
+    if (im) im.value = mins;
+    if (is_) is_.value = secs;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// WATER TRACKER
+// ════════════════════════════════════════════════════════════
+function renderWaterTracker() {
+  const cups = $('water-cups'); if (!cups) return;
+  const today = todayStr();
+  S.waterLog = S.waterLog || {};
+  const count = S.waterLog[today] || 0;
+  cups.innerHTML = Array.from({ length: 8 }, (_, i) => {
+    const filled = i < count;
+    return `<div class="water-cup ${filled ? 'full' : ''}" onclick="toggleCup(${i})">
+      <div class="water-cup-fill" style="height:${filled ? '100%' : '0%'};"></div>
+    </div>`;
+  }).join('');
+  setTxt('water-count', count);
+  const msgs = ['Start drinking! 💧', 'Good start! 💧', 'Quarter way! 💧', 'Halfway there! 🌊', 'Almost! 🌊', 'Nearly done! 🌊', 'Almost full! 💦', 'One more! 💦', '🏆 Hydrated! '];
+  setTxt('water-msg', msgs[Math.min(count, 8)]);
+}
+function toggleCup(index) {
+  const today = todayStr();
+  S.waterLog = S.waterLog || {};
+  const current = S.waterLog[today] || 0;
+  S.waterLog[today] = index < current ? index : index + 1;
+  save(); renderWaterTracker();
+  playSound('tick');
+}
+function resetWater() { S.waterLog = S.waterLog || {}; S.waterLog[todayStr()] = 0; save(); renderWaterTracker(); }
+
+// ════════════════════════════════════════════════════════════
+// SLEEP LOG
+// ════════════════════════════════════════════════════════════
+function logSleep() {
+  const bed = $('sleep-bed')?.value;
+  const wake = $('sleep-wake')?.value;
+  if (!bed || !wake) { toast('Enter both bedtime and wake time!', 'error'); return; }
+  // Calculate duration
+  const [bh, bm] = bed.split(':').map(Number);
+  const [wh, wm] = wake.split(':').map(Number);
+  let dur = (wh * 60 + wm) - (bh * 60 + bm);
+  if (dur < 0) dur += 24 * 60;
+  const hrs = (dur / 60).toFixed(1);
+  S.sleepLog = S.sleepLog || [];
+  S.sleepLog.unshift({ date: todayStr(), bed, wake, hours: parseFloat(hrs) });
+  if (S.sleepLog.length > 30) S.sleepLog = S.sleepLog.slice(0, 30);
+  save(); renderSleepLog();
+  toast(`😴 ${hrs}h sleep logged!`, 'success');
+}
+function renderSleepLog() {
+  const el = $('sleep-log-list'); if (!el) return;
+  const log = S.sleepLog || [];
+  if (!log.length) { el.innerHTML = `<div style="font-size:10px;color:var(--sub);padding:5px;">No sleep logs yet.</div>`; return; }
+  el.innerHTML = log.slice(0, 7).map(l => {
+    const quality = l.hours >= 8 ? '🟢' : l.hours >= 6 ? '🟡' : '🔴';
+    const pct = Math.min(100, Math.round(l.hours / 9 * 100));
+    return `<div class="sleep-entry">
+      <div style="font-family:var(--font-mono, monospace);font-size:8px;color:var(--sub);min-width:55px;">${l.date}</div>
+      <div style="font-size:9px;">${l.bed}→${l.wake}</div>
+      <div class="sleep-bar-wrap"><div class="sleep-bar-fill" style="width:${pct}%"></div></div>
+      <div style="font-family:sans-serif;font-weight:900;font-size:11px;flex-shrink:0;">${l.hours}h ${quality}</div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// GRATITUDE JOURNAL
+// ════════════════════════════════════════════════════════════
+function addGratitude() {
+  const inp = $('gratitude-input'); if (!inp || !inp.value.trim()) return;
+  S.gratitudeLog = S.gratitudeLog || [];
+  S.gratitudeLog.unshift({ date: todayStr(), text: inp.value.trim() });
+  if (S.gratitudeLog.length > 100) S.gratitudeLog = S.gratitudeLog.slice(0, 100);
+  inp.value = '';
+  save(); renderGratitudeList();
+  playSound('tick');
+  toast('🙏 Gratitude logged!', 'success');
+}
+function renderGratitudeList() {
+  const el = $('gratitude-list'); if (!el) return;
+  const log = S.gratitudeLog || [];
+  if (!log.length) { el.innerHTML = getEmptyState("gratitude"); return; }
+  el.innerHTML = log.slice(0, 10).map(e => `<div class="gratitude-entry"><div class="ge-date">${e.date}</div><div class="ge-text">🙏 ${e.text}</div></div>`).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// DAILY INTENTION
+// ════════════════════════════════════════════════════════════
+function saveIntention() {
+  const inp = $('intention-input'); if (!inp || !inp.value.trim()) return;
+  S.intentions = S.intentions || {};
+  S.intentions[todayStr()] = inp.value.trim();
+  inp.value = '';
+  save(); renderIntention();
+  toast('🎯 Intention set!', 'success');
+}
+function renderIntention() {
+  const el = $('intention-display'); if (!el) return;
+  const today = todayStr();
+  const intent = S.intentions && S.intentions[today];
+  if (intent) {
+    el.innerHTML = `<div style="background:var(--black);border:2px solid var(--yellow);padding:9px 11px;font-family:sans-serif;font-weight:900;font-size:12px;color:var(--yellow);">🎯 ${intent}</div>`;
+  } else {
+    el.innerHTML = `<div style="font-size:10px;color:var(--sub);">No intention set yet today.</div>`;
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// CUSTOM SELECT PICKER
+// ════════════════════════════════════════════════════════════
+const SELECT_CONFIGS = {
+  cat: {
+    title: 'SELECT CATEGORY',
+    options: [
+      {value:'health', svg:'<path d="M6 4v6"/><path d="M18 4v6"/><path d="M3 7h18"/><path d="M6 10c0 4 2 6 6 6s6-2 6-6"/>', label:'Health', sub:'Physical fitness & body'},
+      {value:'mind', svg:'<path d="M9.5 2a4.5 4.5 0 014.5 4.5c0 1.5-.5 2.5-1.5 3.5h3a4.5 4.5 0 010 9H9a4.5 4.5 0 010-9h.5C8 9 7.5 8 7.5 6.5A4.5 4.5 0 019.5 2z"/>', label:'Mind', sub:'Mental & cognitive'},
+      {value:'productivity', svg:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>', label:'Work', sub:'Career & productivity'},
+      {value:'wellness', svg:'<path d="M17 8C8 10 5.9 16.17 3.82 19.97"/><path d="M3.82 19.97A10 10 0 0122 12c0-8.5-6-12-6-12C13 4 9 6 9 12a6 6 0 006 6c3 0 5-2 5-2"/>', label:'Wellness', sub:'Self-care & balance'},
+      {value:'social', svg:'<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>', label:'Social', sub:'Relationships & community'},
+      {value:'finance', svg:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>', label:'Finance', sub:'Money & budgeting'},
+      {value:'creativity', svg:'<circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125A1.64 1.64 0 0115.296 19h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>', label:'Creative', sub:'Arts & creative work'},
+      {value:'custom', svg:'<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>', label:'Custom', sub:'Your own category'},
+    ]
+  },
+  prog: {
+    title: 'DIFFICULTY CURVE',
+    options: [
+      {value:'none', svg:'<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>', label:'None', sub:'Fixed target, no changes'},
+      {value:'slow', svg:'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>', label:'Slow +10%/wk', sub:'Gradual increase weekly'},
+      {value:'medium', svg:'<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>', label:'Medium +20%/wk', sub:'Moderate weekly push'},
+      {value:'fast', svg:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>', label:'Fast +30%/wk', sub:'Aggressive escalation'},
+    ]
+  },
+  stack: {
+    title: 'STACK AFTER HABIT',
+    options: [] // populated dynamically
+  }
+};
+
+var _currentSelectId = null;
+
+function openCustomSelect(id) {
+  _currentSelectId = id;
+  const cfg = SELECT_CONFIGS[id];
+  if (!cfg) return;
+
+  // Populate stack dynamically
+  if (id === 'stack') {
+    const editId = $('edit-id')?.value || '';
+    cfg.options = [{value:'', icon:'🚫', label:'— None —', sub:'No chaining'}];
+    S.habits.filter(h => h.id !== editId).forEach(h => {
+      cfg.options.push({value: h.id, icon: h.icon, label: h.name, sub: `${h.freq} · 🔥${h.streak||0}`});
+    });
+  }
+
+  const curVal = $('inp-' + id)?.value || '';
+  setTxt('csd-title', cfg.title);
+
+  const opts = $('csd-options');
+  if (opts) {
+    opts.innerHTML = cfg.options.map(o => {
+    const svgHtml = o.svg ? `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${o.svg}</svg>` : (o.icon||'');
+    const safeLabel = o.label.replace(/'/g,"\\'");
+    const safeSvg = (o.svg||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    return `<div class="csd-option${o.value === curVal ? ' selected' : ''}" onclick="selectCustomOption('${id}','${o.value}','${safeSvg}','${safeLabel}')">
+        <div class="csd-option-icon">${svgHtml}</div>
+        <div style="flex:1;"><div class="csd-option-label">${o.label}</div><div class="csd-option-sub">${o.sub}</div></div>
+        <div class="csd-check"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><polyline points="20 6 9 17 4 12"/></svg></div>
+      </div>`;
+  }).join('');
+  }
+
+  const backdrop = $('csd-backdrop');
+  const dropdown = $('custom-select-dropdown');
+  if (backdrop) backdrop.style.display = 'block';
+  if (dropdown) setTimeout(() => dropdown.classList.add('open'), 10);
+
+  const trigger = $('trigger-' + id);
+  if (trigger) trigger.classList.add('open');
+}
+
+function selectCustomOption(id, value, svgOrIcon, label) {
+  const inp = $('inp-' + id);
+  if (inp) inp.value = value;
+
+  const trigger = $('trigger-' + id);
+  if (trigger) {
+    const ico = trigger.querySelector('.cst-icon');
+    const lbl = trigger.querySelector('.cst-label');
+    if (ico) {
+      // If it looks like SVG path data, wrap it
+      if (svgOrIcon && (svgOrIcon.startsWith('<') || svgOrIcon.includes('path') || svgOrIcon.includes('circle') || svgOrIcon.includes('line') || svgOrIcon.includes('polygon'))) {
+        ico.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgOrIcon.replace(/&quot;/g,'"')}</svg>`;
+      } else {
+        ico.textContent = svgOrIcon;
+      }
+    }
+    if (lbl) lbl.textContent = label;
+  }
+
+  // Special handling
+  if (id === 'cat') {/* no extra action */}
+  if (id === 'prog') updateProgDifficultyVisibility();
+
+  closeCustomSelect();
+}
+
+function closeCustomSelect() {
+  const backdrop = $('csd-backdrop');
+  const dropdown = $('custom-select-dropdown');
+  if (dropdown) dropdown.classList.remove('open');
+  if (backdrop) setTimeout(() => backdrop.style.display = 'none', 250);
+  if (_currentSelectId) {
+    const trigger = $('trigger-' + _currentSelectId);
+    if (trigger) trigger.classList.remove('open');
+  }
+  _currentSelectId = null;
+}
+
+// [merged into original function]
+
+// [merged into original function]
+
+// [merged into original function]
+
+// ════════════════════════════════════════════════════════════
+// CUSTOM TIME PICKER
+// ════════════════════════════════════════════════════════════
+var _tpTarget = 'inp-time'; // which input to fill
+var _tpHour = 12, _tpMin = 0, _tpAmPm = 'AM';
+
+function openTimePicker(targetId) {
+  _tpTarget = targetId || 'inp-time';
+  let cur = '';
+  if (_tpTarget.startsWith('jadwal-time-')) {
+    const idx = parseInt(_tpTarget.split('jadwal-time-')[1]);
+    cur = _jadwalTimes[idx] || '';
+  } else {
+    cur = $(_tpTarget)?.value || '';
+  }
+  if (cur) {
+    const [hStr, mStr] = cur.split(':');
+    _tpHour = parseInt(hStr) || 0;
+    _tpMin  = Math.round((parseInt(mStr)||0)/5)*5;
+  } else {
+    const now = new Date();
+    _tpHour = now.getHours();
+    _tpMin  = Math.round(now.getMinutes()/5)*5;
+  }
+  buildTimeScrollers();
+  updateTPDisplay();
+  $('time-picker-overlay').classList.add('open');
+}
+
+function buildTimeScrollers() {
+  const hs = $('tp-hour-scroll');
+  const ms = $('tp-min-scroll');
+  if (!hs || !ms) return;
+
+  const pad = '<div class="tp-item" style="opacity:0;pointer-events:none;height:40px;">--</div>';
+  // 24h: 0-23
+  hs.innerHTML = pad + Array.from({length:24},(_,i)=>{
+    return `<div class="tp-item${i===_tpHour?' active':''}" onclick="setTPHour(${i})" style="height:40px;line-height:40px;">${String(i).padStart(2,'0')}</div>`;
+  }).join('') + pad;
+
+  // Minutes: 0,5,10,...,55
+  ms.innerHTML = pad + Array.from({length:12},(_,i)=>{
+    const m=i*5;
+    return `<div class="tp-item${m===_tpMin?' active':''}" onclick="setTPMin(${m})" style="height:40px;line-height:40px;">${String(m).padStart(2,'0')}</div>`;
+  }).join('') + pad;
+
+  setTimeout(() => {
+    const activeH = hs.querySelector('.active');
+    if (activeH) hs.scrollTop = activeH.offsetTop - hs.offsetHeight/2 + 20;
+    const activeM = ms.querySelector('.active');
+    if (activeM) ms.scrollTop = activeM.offsetTop - ms.offsetHeight/2 + 20;
+  }, 60);
+}
+
+function setTPHour(h) {
+  _tpHour = h;
+  document.querySelectorAll('#tp-hour-scroll .tp-item').forEach(el => {
+    el.classList.toggle('active', parseInt(el.textContent) === h);
+  });
+  updateTPDisplay();
+  // Auto scroll to center
+  const hs = $('tp-hour-scroll');
+  const active = hs?.querySelector('.active');
+  if(active && hs) hs.scrollTop = active.offsetTop - hs.offsetHeight/2 + 20;
+}
+function setTPMin(m) {
+  _tpMin = m;
+  document.querySelectorAll('#tp-min-scroll .tp-item').forEach(el => {
+    el.classList.toggle('active', parseInt(el.textContent) === m);
+  });
+  updateTPDisplay();
+}
+function setTPAmPm(ap) {
+  _tpAmPm = ap;
+  const am = $('tp-am-btn'); const pm = $('tp-pm-btn');
+  if (am) am.classList.toggle('sel', ap === 'AM');
+  if (pm) pm.classList.toggle('sel', ap === 'PM');
+  updateTPDisplay();
+}
+function updateTPDisplay() {
+  setTxt('tp-h', String(_tpHour).padStart(2,'0'));
+  setTxt('tp-m', String(_tpMin).padStart(2,'0'));
+}
+function confirmTimePicker() {
+  const val = `${String(_tpHour).padStart(2,'0')}:${String(_tpMin).padStart(2,'0')}`;
+  if (_tpTarget.startsWith('jadwal-time-')) {
+    const idx = parseInt(_tpTarget.split('jadwal-time-')[1]);
+    updateJadwalTime(idx, val);
+    const lbl = $('jadwal-time-val-'+idx); if (lbl) lbl.textContent = val;
+    closeTimePicker();
+    return;
+  }
+  const inp = $(_tpTarget);
+  if (inp) inp.value = val;
+  // Update display labels
+  if (_tpTarget === 'inp-time') {
+    const tv = $('time-trigger-val'); if (tv) tv.textContent = val;
+  } else if (_tpTarget === 'sleep-bed') {
+    const sv = $('sleep-bed-val'); if (sv) sv.textContent = val;
+  } else if (_tpTarget === 'sleep-wake') {
+    const sv = $('sleep-wake-val'); if (sv) sv.textContent = val;
+  }
+  closeTimePicker();
+}
+function clearTimePicker() {
+  if (_tpTarget.startsWith('jadwal-time-')) {
+    const idx = parseInt(_tpTarget.split('jadwal-time-')[1]);
+    if (_jadwalTimes.length > 1) { removeJadwalTime(idx); }
+    closeTimePicker();
+    return;
+  }
+  const inp = $(_tpTarget); if (inp) inp.value = '';
+  if (_tpTarget === 'inp-time') { const tv=$('time-trigger-val'); if(tv) tv.textContent='--:--'; }
+  else if (_tpTarget === 'sleep-bed') { const sv=$('sleep-bed-val'); if(sv) sv.textContent='--:--'; }
+  else if (_tpTarget === 'sleep-wake') { const sv=$('sleep-wake-val'); if(sv) sv.textContent='--:--'; }
+  closeTimePicker();
+}
+function closeTimePicker() {
+  $('time-picker-overlay').classList.remove('open');
+}
+
+// ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+
+
+// ════════════════════════════════════════════════════════════
+// SEARCH HABITS
+// ════════════════════════════════════════════════════════════
+// [// [_searchQuery declared at top]
+// [let _searchDebounce moved to top]
+function setHabitSearch(val) {
+  _searchQuery = val.toLowerCase().trim();
+  const clearBtn = document.querySelector('.search-clear');
+  if (clearBtn) clearBtn.style.display = _searchQuery ? 'block' : 'none';
+  clearTimeout(_searchDebounce);
+  _searchDebounce = setTimeout(() => {
+    if (_searchQuery) renderAllHabitsFiltered();
+    else renderAllHabits();
+  }, 180);
+}
+function renderAllHabitsFiltered() {
+  // Filter all lists by search query
+  const q = _searchQuery;
+  const active = S.habits.filter(h=>!h.archived);
+  const filtered = active.filter(h=>
+    h.name.toLowerCase().includes(q) ||
+    (h.notes||'').toLowerCase().includes(q) ||
+    (h.category||'').toLowerCase().includes(q)
+  );
+  ['daily-habits-list','weekly-habits-list','monthly-habits-list'].forEach(id=>{
+    const el=$(id); if(!el) return;
+    const subset = id==='daily-habits-list' ? filtered.filter(h=>DAILY_FREQS.includes(h.freq||'daily'))
+      : id==='weekly-habits-list' ? filtered.filter(h=>h.freq==='weekly')
+      : filtered.filter(h=>h.freq==='monthly');
+    el.innerHTML = subset.length ? subset.map(h=>habitCard(h,'daily','hc')).join('')
+      : `<div style="font-size:10px;color:var(--sub);padding:9px;">No results for "${q}"</div>`;
+  });
+}
+function clearSearch() {
+  const sb = document.querySelector('.search-bar');
+  if (sb) sb.value = '';
+  setHabitSearch('');
+}
+// [merged into original function]
+
+// ════════════════════════════════════════════════════════════
+// IN-APP NOTIFICATION SYSTEM
+// ════════════════════════════════════════════════════════════
+var _notifQueue = [], _notifShowing = false;
+function notify(msg, icon='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--yellow)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>', duration=3500) {
+  _notifQueue.push({msg, icon, duration});
+  if (!_notifShowing) showNextNotif();
+}
+function showNextNotif() {
+  if (!_notifQueue.length) { _notifShowing = false; return; }
+  _notifShowing = true;
+  const {msg, icon, duration} = _notifQueue.shift();
+  const tc = $('toast-container'); if (!tc) { _notifShowing = false; return; }
+  const el = document.createElement('div');
+  el.className = 'toast notif-toast';
+  el.innerHTML = `<div style="font-size:18px;flex-shrink:0;">${icon}</div><div style="flex:1;">${msg}</div>`;
+  tc.appendChild(el);
+  el._timer = setTimeout(() => dismissNotif(el), duration);
+}
+function dismissNotif(el) {
+  if (!el) el = document.querySelector('.notif-toast');
+  if (el) {
+    clearTimeout(el._timer);
+    el.classList.add('removing');
+    setTimeout(() => { el.remove(); _notifShowing = false; showNextNotif(); }, 320);
+  }
+}
+
+// Browser push notification request
+function requestNotifPermission() {
+  if (!('Notification' in window)) { toast('Notifications not supported', 'error'); return; }
+  Notification.requestPermission().then(perm => {
+    if (perm === 'granted') { toast('<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg> Notifications enabled!', 'success'); scheduleReminders(); }
+    else toast('Notifications blocked by browser', 'error');
+  });
+}
+function scheduleReminders() {
+  // Check for upcoming habits every minute
+  if (S._reminderInterval) clearInterval(S._reminderInterval);
+  setInterval(() => {
+    const now = new Date();
+    const hhmm = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    S.habits.forEach(h => {
+      if (h.scheduledTime && h.scheduledTime === hhmm && !h.completedToday && isDueToday(h)) {
+        const msg = `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Time for: ${h.icon} ${h.name}`;
+        notify(msg, h.icon, 5000);
+        if (Notification.permission === 'granted') {
+          new Notification('OHT Reminder', { body: `${h.icon} ${h.name}`, icon: '🦁' });
+        }
+      }
+    });
+    // Evening at-risk warning 6PM
+    if (now.getHours() === 18 && now.getMinutes() === 0) {
+      const atRisk = S.habits.filter(h => isStreakAtRisk(h));
+      if (atRisk.length) notify(`⚠ ${atRisk.length} streak(s) at risk! Do them now.`, '⚠', 6000);
+    }
+  }, 60000);
+}
+
+// ════════════════════════════════════════════════════════════
+// ARCHIVE HABITS
+// ════════════════════════════════════════════════════════════
+function archiveHabit(id) {
+  const h = S.habits.find(x => x.id === id); if (!h) return;
+  h.archived = true; h.archivedAt = todayStr();
+  save(); renderAll();
+  toast(`📦 "${h.name}" archived`, 'info');
+}
+function unarchiveHabit(id) {
+  const h = S.habits.find(x => x.id === id); if (!h) return;
+  h.archived = false; delete h.archivedAt;
+  save(); renderAll();
+  toast(`↩ "${h.name}" restored`, 'success');
+}
+function renderArchive() {
+  const el = $('archive-list'); if (!el) return;
+  const archived = S.habits.filter(h => h.archived);
+  if (!archived.length) { el.innerHTML = `<div style="font-size:10px;color:var(--sub);padding:9px;">No archived habits.</div>`; return; }
+  el.innerHTML = archived.map(h => `<div class="archive-card">
+    <span style="font-size:16px;">${h.icon}</span>
+    <div style="flex:1;"><div style="font-size:11px;font-weight:700;">${h.name}</div>
+    <div style="font-family:var(--font-mono, monospace);font-size:7px;color:var(--sub);">Archived ${h.archivedAt||'?'} · 🔥 best ${h.bestStreak||0}</div></div>
+    <button class="btn btn-xs btn-success" onclick="unarchiveHabit('${h.id}')">↩</button>
+    <button class="btn btn-xs btn-danger" onclick="confirmDelete('${h.id}')">🗑</button>
+  </div>`).join('');
+}
+// [merged into original function]
+
+// ════════════════════════════════════════════════════════════
+// SKIP DAY (planned skip — no streak penalty)
+// ════════════════════════════════════════════════════════════
+function skipHabitToday(id) {
+  const h = S.habits.find(x => x.id === id); if (!h) return;
+  h.skippedToday = true;
+  S.skips = S.skips || {};
+  S.skips[todayStr()] = S.skips[todayStr()] || [];
+  if (!S.skips[todayStr()].includes(id)) S.skips[todayStr()].push(id);
+  save(); renderAll();
+  toast(`⏭ "${h.name}" skipped today (streak safe)`, 'info');
+}
+
+// ════════════════════════════════════════════════════════════
+// LEVEL UP CINEMATIC
+// ════════════════════════════════════════════════════════════
+function showLevelUp(level, name) {
+  let ov = $('levelup-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'levelup-overlay';
+    ov.className = 'levelup-overlay';
+    // Rays
+    let rays = '<div class="levelup-rays">';
+    for (let i = 0; i < 12; i++) rays += `<div class="levelup-ray" style="height:${150+Math.random()*80}px;transform:rotate(${i*30}deg);opacity:${0.15+Math.random()*0.2};animation-delay:${Math.random()*2}s;"></div>`;
+    rays += '</div>';
+    ov.innerHTML = rays + `<div class="levelup-content">
+      <div class="levelup-lbl">LEVEL UP!</div>
+      <div class="levelup-num" id="levelup-num">${level}</div>
+      <div class="levelup-name" id="levelup-name">${name}</div>
+      <div style="font-family:var(--font-mono, monospace);font-size:8px;color:#888;margin-top:7px;">TAP TO CONTINUE</div>
+    </div>`;
+    ov.onclick = () => { ov.classList.remove('show'); };
+    document.body.appendChild(ov);
+  } else {
+    setTxt('levelup-num', level);
+    setTxt('levelup-name', name);
+  }
+  playSound('levelup');
+  if (S.confettiOn !== false) confetti(40);
+  ov.classList.add('show');
+}
+// [merged into original function]
+
+// ════════════════════════════════════════════════════════════
+// DAILY JOURNAL (auto-generated + manual)
+// ════════════════════════════════════════════════════════════
+function saveJournalEntry(text) {
+  const today = todayStr();
+  S.journalEntries = S.journalEntries || {};
+  const mood = S.moodLog && S.moodLog[today];
+  const doneHabits = S.habits.filter(h => h.completedToday).map(h => `${h.icon} ${h.name}`);
+  S.journalEntries[today] = {
+    date: today, text: text || '',
+    mood: mood?.mood || 0, energy: mood?.energy || 0,
+    doneHabits, xp: S.xp || 0,
+    autoGenerated: !text
+  };
+  save(); renderJournal();
+  if (text) toast('📝 Journal saved!', 'success');
+}
+function renderJournal() {
+  const el = $('journal-list'); if (!el) return;
+  S.journalEntries = S.journalEntries || {};
+  const entries = Object.values(S.journalEntries).sort((a,b) => b.date.localeCompare(a.date));
+  if (!entries.length) { el.innerHTML = `<div style="font-size:10px;color:var(--sub);">No journal entries yet. Complete habits to auto-generate entries.</div>`; return; }
+  const MOOD_E = ['','😫','😕','😐','😊','🔥'];
+  el.innerHTML = entries.slice(0, 14).map(e => `<div class="journal-entry">
+    <div class="je-date">${e.date} ${e.mood ? MOOD_E[e.mood] : ''} ${e.energy ? '⚡'.repeat(e.energy) : ''}</div>
+    ${e.text ? `<div class="je-text">${e.text}</div>` : `<div class="je-text" style="color:var(--sub);font-style:italic;">📊 Completed ${e.doneHabits?.length||0} habits</div>`}
+    ${e.doneHabits?.length ? `<div class="je-habit-chips">${e.doneHabits.slice(0,6).map(h=>`<div class="je-chip">${h}</div>`).join('')}</div>` : ''}
+  </div>`).join('');
+}
+// [completeAll merged]
+
+// ════════════════════════════════════════════════════════════
+// STOPWATCH
+// ════════════════════════════════════════════════════════════
+var swState = { running: false, elapsed: 0, lapStart: 0, laps: [], interval: null };
+function toggleStopwatch() {
+  if (swState.running) {
+    clearInterval(swState.interval); swState.running = false;
+  } else {
+    const now = Date.now();
+    swState.lapStart = swState.lapStart || now;
+    swState.running = true;
+    swState.interval = setInterval(() => {
+      swState.elapsed = Date.now() - (swState._startTime || Date.now());
+      updateSWDisplay();
+    }, 100);
+    swState._startTime = swState._startTime || (Date.now() - swState.elapsed);
+  }
+  const btn = $('sw-btn');
+  if (btn) btn.textContent = swState.running ? '⏸ PAUSE' : '▶ START';
+}
+function lapStopwatch() {
+  if (!swState.running) return;
+  const lapTime = swState.elapsed - (swState.laps.reduce((s,l) => s + l, 0));
+  swState.laps.push(lapTime);
+  renderSWLaps();
+}
+function resetStopwatch() {
+  clearInterval(swState.interval);
+  swState = { running: false, elapsed: 0, lapStart: 0, laps: [], interval: null, _startTime: null };
+  updateSWDisplay(); renderSWLaps();
+  const btn = $('sw-btn'); if (btn) btn.textContent = '▶ START';
+}
+function updateSWDisplay() {
+  const el = $('sw-display'); if (!el) return;
+  const ms = swState.elapsed;
+  const mm = Math.floor(ms / 60000);
+  const ss = Math.floor((ms % 60000) / 1000);
+  const cs = Math.floor((ms % 1000) / 10);
+  el.textContent = `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}.${String(cs).padStart(2,'0')}`;
+}
+function renderSWLaps() {
+  const el = $('sw-laps'); if (!el) return;
+  if (!swState.laps.length) { el.innerHTML = ''; return; }
+  el.innerHTML = swState.laps.map((l, i) => {
+    const mm = Math.floor(l/60000), ss = Math.floor((l%60000)/1000), cs = Math.floor((l%1000)/10);
+    return `<div class="lap-row"><span>LAP ${i+1}</span><span>${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}.${String(cs).padStart(2,'0')}</span></div>`;
+  }).reverse().join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// CUSTOM ACCENT COLOR THEMES
+// ════════════════════════════════════════════════════════════
+const ACCENT_HEX_MAP = {pink:'#FF3CAC',green:'#AAFF00',blue:'#00B4FF',orange:'#FF6B00'};
+function updateFaviconAccent(theme) {
+  const hex = ACCENT_HEX_MAP[theme] || '#FFE600';
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">'
+    + '<rect x="0" y="0" width="120" height="120" fill="#0a0a0a"/>'
+    + '<rect x="0" y="0" width="120" height="28" fill="' + hex + '"/>'
+    + '<rect x="28" y="0" width="8" height="14" fill="#0a0a0a"/>'
+    + '<rect x="84" y="0" width="8" height="14" fill="#0a0a0a"/>'
+    + '<rect x="10" y="38" width="26" height="22" fill="#222"/>'
+    + '<rect x="47" y="38" width="26" height="22" fill="#222"/>'
+    + '<rect x="84" y="38" width="26" height="22" fill="' + hex + '"/>'
+    + '<rect x="10" y="68" width="26" height="22" fill="' + hex + '"/>'
+    + '<rect x="47" y="68" width="26" height="22" fill="' + hex + '"/>'
+    + '<rect x="84" y="68" width="26" height="22" fill="' + hex + '"/>'
+    + '<rect x="10" y="98" width="26" height="18" fill="' + hex + '"/>'
+    + '<rect x="47" y="98" width="26" height="18" fill="#FF6B00"/>'
+    + '<rect x="84" y="98" width="26" height="18" fill="#333"/>'
+    + '</svg>';
+  const link = document.getElementById('favicon-link');
+  if (link) link.href = 'data:image/svg+xml;base64,' + btoa(svg);
+}
+function setAccentTheme(theme) {
+  S.accentTheme = theme;
+  document.documentElement.setAttribute('data-accent', theme);
+  updateFaviconAccent(theme);
+  // Sinkronkan status bar PWA (meta theme-color) dengan accent yang dipilih
+  const metaTc = document.querySelector('meta[name="theme-color"]');
+  if (metaTc) metaTc.setAttribute('content', ACCENT_HEX_MAP[theme] || '#FFE600');
+  save();
+  document.querySelectorAll('.accent-opt').forEach(el => {
+    el.classList.toggle('sel', el.dataset.accent === theme);
+  });
+  toast('🎨 Theme updated!', 'success');
+}
+
+// ════════════════════════════════════════════════════════════
+// SWIPE TO COMPLETE (touch gesture on habit cards)
+// ════════════════════════════════════════════════════════════
+var _touchStart = null;
+document.addEventListener('touchstart', e => {
+  const card = e.target.closest('.habit-card');
+  if (card) _touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, card };
+}, { passive: true });
+document.addEventListener('touchmove', e => {
+  if (!_touchStart) return;
+  const dx = e.touches[0].clientX - _touchStart.x;
+  const dy = Math.abs(e.touches[0].clientY - _touchStart.y);
+  if (dy > 20) { _touchStart = null; return; } // vertical scroll
+  const ind = _touchStart.card.querySelector('.habit-swipe-indicator');
+  if (ind && dx > 15) ind.classList.add('show');
+  if (ind && dx <= 15) ind.classList.remove('show');
+}, { passive: true });
+document.addEventListener('touchend', e => {
+  if (!_touchStart) return;
+  const dx = e.changedTouches[0].clientX - _touchStart.x;
+  const card = _touchStart.card;
+  const ind = card?.querySelector('.habit-swipe-indicator');
+  if (ind) ind.classList.remove('show');
+  if (dx > 65 && card) {
+    // Extract habit id from card
+    const idMatch = card.id?.match(/(?:hc|th)-(.+)/);
+    if (idMatch) {
+      const h = S.habits.find(x => x.id === idMatch[1]);
+      if (h && !h.completedToday && !h.paused && !S.vacationMode) {
+        toggleHabit(h.id, card.id.startsWith('th') ? 'th' : 'hc');
+      }
+    }
+  }
+  _touchStart = null;
+});
+
+// ════════════════════════════════════════════════════════════
+// HABIT QUICK NOTES EXPAND
+// ════════════════════════════════════════════════════════════
+function toggleHabitNotes(id) {
+  const card = $(`th-${id}`) || $(`hc-${id}`);
+  if (card) card.classList.toggle('notes-open');
+}
+
+// ════════════════════════════════════════════════════════════
+// AUTO JOURNAL ON DAY END
+// ════════════════════════════════════════════════════════════
+// [merged into original function]
+
+// [merged into original function]
+
+// ════════════════════════════════════════════════════════════
+// SVG ICON SYSTEM — replaces emoji in UI chrome
+// ════════════════════════════════════════════════════════════
+const SVG = {
+  home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M3 10L12 3l9 7v11H15v-5H9v5H3V10z"/></svg>`,
+  habits: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><rect x="3" y="4" width="18" height="3"/><rect x="3" y="10" width="18" height="3"/><rect x="3" y="16" width="12" height="3"/><polyline points="17 17 20 20 23 15"/></svg>`,
+  garden: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><line x1="12" y1="22" x2="12" y2="11"/><path d="M12 11C12 11 8 8 8 5a4 4 0 018 0c0 3-4 6-4 6z"/><path d="M12 13C12 13 15 11 18 12s1 4-6 1"/><line x1="5" y1="22" x2="19" y2="22"/></svg>`,
+  calendar: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>`,
+  focus: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>`,
+  streak: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M13 2C13 2 7 8 7 13a5 5 0 0010 0c0-3-2-6-2-6"/><line x1="12" y1="2" x2="12" y2="7"/></svg>`,
+  settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>`,
+  sound_on: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 010 7"/><path d="M19 5a9 9 0 010 14"/></svg>`,
+  sound_off: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>`,
+  moon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>`,
+  sun: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`,
+  add: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+  check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><polyline points="20 6 9 17 4 12"/></svg>`,
+  freeze: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 7l-5 5-5-5"/><path d="M17 17l-5-5-5 5"/><path d="M2 12l5-2.5L2 7"/><path d="M22 12l-5 2.5L22 17"/></svg>`,
+  trophy: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M6 9H4a2 2 0 01-2-2V5h4"/><path d="M18 9h2a2 2 0 002-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 5h12v5a6 6 0 01-12 0V5z"/></svg>`,
+  coach: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><path d="M15 11l2 3-2 1"/></svg>`,
+  refresh: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 11-2.8-9.6L23 10"/></svg>`,
+  history: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><polyline points="2 12 5 12"/><polyline points="12 2 12 5"/></svg>`,
+  dna: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M2 2c4 0 8 2 8 6s-4 6-4 10 4 4 8 4"/><path d="M22 22c-4 0-8-2-8-6s4-6 4-10-4-4-8-4"/><line x1="6" y1="7" x2="18" y2="7"/><line x1="4" y1="12" x2="12" y2="12"/><line x1="6" y1="17" x2="18" y2="17"/></svg>`,
+  water: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M12 2C12 2 5 10 5 15a7 7 0 0014 0c0-5-7-13-7-13z"/></svg>`,
+  sleep: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/><line x1="8" y1="14" x2="8" y2="14.01"/></svg>`,
+  journal: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></svg>`,
+  target: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
+  timer: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 14 15"/><line x1="9" y1="2" x2="15" y2="2"/><line x1="12" y1="2" x2="12" y2="5"/></svg>`,
+  stopwatch: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 15 15"/><line x1="9" y1="2" x2="15" y2="2"/><line x1="19" y1="5" x2="21" y2="3"/></svg>`,
+  report: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><rect x="3" y="3" width="18" height="18"/><polyline points="7 17 10 13 13 15 17 9"/></svg>`,
+  mission: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+  lock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><rect x="3" y="11" width="18" height="11"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>`,
+  share: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>`,
+  edit: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+  trash: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`,
+  archive: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>`,
+  skip: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>`,
+  pause: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`,
+  play: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><polygon points="5 3 19 12 5 21 5 3"/></svg>`,
+  chain: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>`,
+  chart: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>`,
+  bell: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>`,
+  pwa: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><rect x="5" y="2" width="14" height="20" rx="0"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`,
+  insight: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+};
+
+// Helper: create inline SVG button icon
+function svgIcon(name, size=16, color='currentColor') {
+  const s = SVG[name];
+  if (!s) return '';
+  return s.replace('<svg ', `<svg width="${size}" height="${size}" style="flex-shrink:0;color:${color};" `);
+}
+
+
+// ════════════════════════════════════════════════════════════
+// HABIT STRENGTH SCORE (0–100%)
+// ════════════════════════════════════════════════════════════
+// Strength cache: invalidated when habits change or day changes
+// [// [_strengthCache declared at top]
+// [// [_strengthCacheDate declared at top]
+function _invalidateStrengthCache() { _strengthCache = {}; }
+
+function getHabitStrength(h) {
+  const td = todayStr();
+  // Invalidate cache on new day
+  if (_strengthCacheDate !== td) { _strengthCache = {}; _strengthCacheDate = td; }
+  const cacheKey = h.id + ':' + (h.streak||0) + ':' + (h.completedToday?1:0) + ':' + (h.totalDone||0);
+  if (_strengthCache[cacheKey] !== undefined) return _strengthCache[cacheKey];
+
+  const today = new Date();
+  const days30 = Array.from({length:30}, (_,i) => {
+    const d = new Date(today); d.setDate(d.getDate()-i);
+    return d.toISOString().split('T')[0];
+  });
+  const histDone = new Set((S.history||[]).filter(e=>e.habitId===h.id&&e.status==='done').map(e=>e.date));
+  let due = 0, done = 0;
+  days30.forEach(ds => {
+    if (!isDueDateStr(h, ds)) return;
+    due++;
+    const snap = S.lockedDays && S.lockedDays[ds];
+    if (snap) {
+      if (snap.find(s => s.habitId === h.id && s.completed)) done++;
+    } else if (ds === td) {
+      if (h.completedToday) done++;
+    } else if (histDone.has(ds)) {
+      done++;
+    }
+  });
+  let result;
+  if (due === 0) {
+    const ageDays = Math.max(1, Math.ceil((Date.now()-new Date(h.createdAt||Date.now()))/(864e5)));
+    const dueDays = Math.ceil(ageDays * (h.freq==='daily'?1:h.freq==='weekdays'?5/7:h.freq==='weekends'?2/7:h.freq==='3x/week'?3/7:h.freq==='weekly'?1/7:1/30));
+    if (dueDays===0) { _strengthCache[cacheKey]=0; return 0; }
+    const raw = Math.min(100,Math.round((h.totalDone||0)/dueDays*100));
+    result = Math.min(100, raw + Math.min(15,Math.floor((h.streak||0)/7)*5));
+  } else {
+    const raw = Math.round(done / due * 100);
+    result = Math.min(100, raw + Math.min(15, Math.floor((h.streak||0)/7)*5));
+  }
+  _strengthCache[cacheKey] = result;
+  return result;
+}
+
+function strengthColor(score) {
+  if (score >= 85) return 'var(--lime)';
+  if (score >= 65) return 'var(--cyan)';
+  if (score >= 40) return 'var(--yellow)';
+  if (score >= 20) return 'var(--orange)';
+  return 'var(--red)';
+}
+
+// ════════════════════════════════════════════════════════════
+// <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> ANTI-HABIT TRACKER
+// ════════════════════════════════════════════════════════════
+function addAntiHabit(name, icon, trigger) {
+  S.antiHabits = S.antiHabits || [];
+  S.antiHabits.push({
+    id: 'a' + Date.now(),
+    name, icon: icon || 'fire', trigger: trigger || '',
+    streak: 0, bestStreak: 0, totalResisted: 0,
+    lastResisted: null, failedToday: false,
+    createdAt: todayStr()
+  });
+  save(); renderAntiHabits();
+  toast('🚫 Anti-habit added!', 'success');
+}
+
+function resistAntiHabit(id) {
+  const a = (S.antiHabits||[]).find(x => x.id === id); if (!a) return;
+  const today = todayStr();
+  if (a.lastResisted === today) { toast('Already logged today!', 'info'); return; }
+
+  // FIX 5: cek apakah streak harus break karena gap hari (miss kemarin)
+  if (a.lastResisted) {
+    const last = new Date(a.lastResisted + 'T12:00:00');
+    const now = new Date(today + 'T12:00:00');
+    const diffDays = Math.round((now - last) / 864e5);
+    if (diffDays > 1) {
+      // Ada gap — streak break dulu sebelum mulai lagi
+      a.streak = 0;
+    }
+  }
+
+  a.streak = (a.streak||0) + 1;
+  a.bestStreak = Math.max(a.bestStreak||0, a.streak);
+  a.totalResisted = (a.totalResisted||0) + 1;
+  a.lastResisted = today; a.failedToday = false;
+  a._resistedXpToday = 15; // simpan untuk reverse jika fail hari yang sama
+  S.xp = (S.xp||0) + 15;
+  save(); renderAntiHabits(); renderStats();
+  playSound('tick');
+  toast(`💪 Resisted "${a.name}"! +15 XP`, 'success');
+  if (S.confettiOn !== false) confetti(6);
+}
+
+function failAntiHabit(id) {
+  const a = (S.antiHabits||[]).find(x => x.id === id); if (!a) return;
+  const today = todayStr();
+  // FIX 6: reverse XP kalau sudah resist hari yang sama
+  if (a.lastResisted === today && a._resistedXpToday) {
+    S.xp = Math.max(0, (S.xp||0) - a._resistedXpToday);
+    a._resistedXpToday = 0;
+  }
+  a.streak = 0; a.failedToday = true; a.lastResisted = today;
+  save(); renderAntiHabits(); renderStats();
+  toast(`📉 "${a.name}" streak reset. Tomorrow is a new day!`, 'error');
+}
+
+function deleteAntiHabit(id) {
+  S.antiHabits = (S.antiHabits||[]).filter(x => x.id !== id);
+  save(); renderAntiHabits();
+}
+
+function renderAntiHabits() {
+  const el = $('anti-habits-list');
+  if (!el) return;
+  S.antiHabits = S.antiHabits || [];
+  if (!S.antiHabits.length) {
+    el.innerHTML = getEmptyState("anti");
+    return;
+  }
+  const today = todayStr();
+  el.innerHTML = S.antiHabits.map(a => {
+    const loggedToday = a.lastResisted === today;
+    const pct = Math.min(100, Math.round((a.streak||0) / Math.max(1, 30) * 100));
+    const ic = HABIT_ICONS.find(x => x.id === a.icon) || HABIT_ICONS[0];
+    const iconSvg = ic ? `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">${ic.svg}</svg>` : '🚫';
+    return `<div class="anti-habit-card">
+      <div style="width:36px;height:36px;background:var(--red);display:flex;align-items:center;justify-content:center;border:var(--bo);flex-shrink:0;color:white;">${iconSvg}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">
+          <div style="font-weight:700;font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.name}</div>
+          <span class="anti-badge"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> ANTI</span>
+        </div>
+        ${a.trigger ? `<div style="font-size:9px;color:var(--sub);margin-bottom:3px;">Trigger: ${a.trigger}</div>` : ''}
+        <div class="anti-progress"><div class="anti-fill" style="width:${pct}%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-family:var(--font-mono, monospace);font-size:7px;color:var(--sub);margin-top:2px;">
+          <span>🔥 ${a.streak||0} days clean</span><span>Best: ${a.bestStreak||0}</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">
+        <div class="anti-streak">${a.streak||0}</div>
+        ${!loggedToday ? `
+          <button class="anti-resist-btn" onclick="resistAntiHabit('${a.id}')">✓ CLEAN</button>
+          <button class="anti-resist-btn failed" onclick="failAntiHabit('${a.id}')">✗ FAILED</button>
+        ` : `<div style="font-family:var(--font-mono, monospace);font-size:7px;color:var(--lime);text-align:center;">${a.failedToday?'FAILED':'CLEAN ✓'}</div>`}
+        <button class="btn btn-xs btn-danger" onclick="deleteAntiHabit('${a.id}')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// RITUAL BUNDLES
+// ════════════════════════════════════════════════════════════
+function openAddRitual() {
+  const cl = $('ritual-habit-checklist'); if (!cl) return;
+  cl.innerHTML = S.habits.filter(h => !h.archived).map(h => {
+    const ic = HABIT_ICONS.find(x => x.id === h.icon);
+    const svg = ic ? `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">${ic.svg}</svg>` : '';
+    return `<label style="display:flex;align-items:center;gap:7px;padding:6px 0;cursor:pointer;border-bottom:1px solid var(--bg);">
+      <input type="checkbox" value="${h.id}" style="width:16px;height:16px;accent-color:var(--yellow);">
+      <span style="display:flex;align-items:center;gap:5px;">${svg} <span style="font-size:11px;">${h.name}</span></span>
+    </label>`;
+  }).join('');
+  $('ritual-inp-name').value = '';
+  $('ritual-inp-time').value = 'morning';
+  document.querySelectorAll('#modal-ritual .freq-btn').forEach((b,i) => b.classList.toggle('sel', i===0));
+  openModal('modal-ritual');
+}
+
+function selRitualTime(el, val) {
+  document.querySelectorAll('#modal-ritual .freq-btn').forEach(b => b.classList.remove('sel'));
+  el.classList.add('sel'); $('ritual-inp-time').value = val;
+}
+
+function saveRitual() {
+  const name = $('ritual-inp-name')?.value.trim();
+  if (!name) { toast('Enter ritual name!', 'error'); return; }
+  const habitIds = [...document.querySelectorAll('#ritual-habit-checklist input:checked')].map(i => i.value);
+  if (!habitIds.length) { toast('Select at least 1 habit!', 'error'); return; }
+  S.rituals = S.rituals || [];
+  S.rituals.push({
+    id: 'r' + Date.now(), name,
+    time: $('ritual-inp-time')?.value || 'morning',
+    habitIds, createdAt: todayStr()
+  });
+  save(); renderRituals();
+  closeModal('modal-ritual');
+  toast(`⚡ "${name}" ritual created!`, 'success');
+}
+
+function deleteRitual(id) {
+  S.rituals = (S.rituals||[]).filter(r => r.id !== id);
+  save(); renderRituals();
+}
+
+const RITUAL_TIME_ICONS = { morning:'🌅', afternoon:'☀️', evening:'🌙', anytime:'⚡' };
+const RITUAL_COLORS = { morning:'#FF6B00', afternoon:'#FFE600', evening:'#7B2FBE', anytime:'#00F5D4' };
+
+function renderRituals() {
+  const el = $('rituals-list'); if (!el) return;
+  S.rituals = S.rituals || [];
+  if (!S.rituals.length) {
+    el.innerHTML = getEmptyState("rituals");
+    return;
+  }
+  el.innerHTML = S.rituals.map(r => {
+    const habits = r.habitIds.map(id => S.habits.find(h => h.id === id)).filter(Boolean);
+    const done = habits.filter(h => h?.completedToday).length;
+    const total = habits.length;
+    const pct = total ? Math.round(done/total*100) : 0;
+    const color = RITUAL_COLORS[r.time] || 'var(--cyan)';
+    const tIcon = RITUAL_TIME_ICONS[r.time] || '⚡';
+    return `<div class="ritual-card" data-rid="${r.id}">
+      <div class="ritual-header" onclick="toggleRitualExpand('${r.id}')">
+        <div class="ritual-icon-wrap" style="background:${color}22;border-color:${color};">
+          <span style="font-size:18px;">${tIcon}</span>
+        </div>
+        <div style="flex:1;">
+          <div class="ritual-title">${r.name}</div>
+          <div class="ritual-meta">${(r.time||"").toUpperCase()} · ${done}/${total} done</div>
+        </div>
+        <div style="font-family:sans-serif;font-weight:900;font-size:16px;color:${pct===100?'var(--lime)':color}">${pct}%</div>
+        <button class="btn btn-xs btn-danger" onclick="event.stopPropagation();deleteRitual('${r.id}')" style="margin-left:5px;padding:3px 6px;">×</button>
+      </div>
+      <div class="ritual-prog-wrap">
+        <div class="ritual-prog-track"><div class="ritual-prog-fill" style="width:${pct}%;background:${color};"></div></div>
+      </div>
+      <div class="ritual-habits-list" id="ritual-habits-${r.id}">
+        ${habits.map(h => {
+          if (!h) return '';
+          const ic = HABIT_ICONS.find(x => x.id === h.icon);
+          const svg = ic ? `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">${ic.svg}</svg>` : '';
+          return `<div class="ritual-habit-row">
+            <div class="rhc${h.completedToday?' done':''}" onclick="toggleHabit('${h.id}','th');setTimeout(()=>renderRituals(),100);">${h.completedToday?'<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--black)" stroke-width="2.5" stroke-linecap="square"><polyline points="20 6 9 17 4 12"/></svg>':''}</div>
+            <span style="display:flex;align-items:center;gap:5px;flex:1;">${svg}<span style="font-size:11px;font-weight:600;${h.completedToday?'text-decoration:line-through;opacity:.6;':''}">${h.name}</span></span>
+            ${h.scheduledTime?`<span class="ritual-time-badge">${h.scheduledTime}</span>`:''}
+            <span style="font-family:var(--font-mono, monospace);font-size:8px;color:var(--orange);">🔥${h.streak||0}</span>
+          </div>`;
+        }).join('')}
+      </div>
+      ${pct<100?`<button class="start-ritual-btn" onclick="startRitual('${r.id}')"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><polygon points="5 3 19 12 5 21 5 3"/></svg> START RITUAL</button>`:`<div style="background:var(--lime);padding:8px;text-align:center;font-family:sans-serif;font-weight:900;font-size:10px;color:var(--black);">✓ RITUAL COMPLETE</div>`}
+    </div>`;
+  }).join('');
+}
+
+function startRitual(id) {
+  const r = (S.rituals||[]).find(x => x.id === id); if (!r) return;
+  const pending = r.habitIds.map(id => S.habits.find(h => h.id === id)).filter(h => h && !h.completedToday && !h.paused);
+  if (!pending.length) { toast('All done!', 'info'); return; }
+  toast(`⚡ Starting "${r.name}" — ${pending.length} habits`, 'info');
+}
+
+// ════════════════════════════════════════════════════════════
+// HABIT DETAIL PAGE
+// ════════════════════════════════════════════════════════════
+function openHabitDetail(id) {
+  const h = S.habits.find(x => x.id === id); if (!h) return;
+  setTxt('hd-title', h.name);
+  const cat = CATS[h.category] || CATS.custom;
+  setTxt('hd-cat', `${cat.label} · ${h.freq}`);
+  setTxt('hd-streak-num', (h.streak||0));
+
+  const strength = getHabitStrength(h);
+  const sc = strengthColor(strength);
+  const totalXp = (h.totalDone||0) * 10;
+  const totalHours = Math.round((h.totalDone||0) * 0.5 * 10) / 10;
+
+  // Build 30-day history
+  const today = new Date();
+  const days30 = Array.from({length:30}, (_,i) => {
+    const d = new Date(today); d.setDate(d.getDate()-(29-i));
+    return d.toISOString().split('T')[0];
+  });
+
+  // Completion notes for this habit
+  const notes = (S.completionNotes||{})[id] || {};
+
+  const body = $('hd-body'); if (!body) return;
+  body.innerHTML = `
+    <!-- Strength + Stats -->
+    <div style="display:flex;gap:9px;align-items:center;background:var(--surface);border:var(--bo-t);padding:11px;margin-bottom:11px;box-shadow:var(--sha-sm);">
+      <div style="flex:1;">
+        <div style="font-family:var(--font-mono, monospace);font-size:7px;color:var(--sub);text-transform:uppercase;margin-bottom:3px;">Habit Strength</div>
+        <div style="font-family:sans-serif;font-weight:900;font-size:32px;color:${sc};line-height:1;">${strength}%</div>
+        <div style="font-family:var(--font-mono, monospace);font-size:8px;color:${sc};">${strength>=85?'EXCELLENT':strength>=65?'STRONG':strength>=40?'BUILDING':strength>=20?'WEAK':'JUST STARTING'}</div>
+      </div>
+      <div style="flex:1;height:8px;background:#eee;border:var(--bo);overflow:hidden;align-self:flex-end;margin-bottom:12px;">
+        <div style="height:100%;width:${strength}%;background:${sc};transition:width .6s;"></div>
+      </div>
+    </div>
+    <div class="hd-stats-row">
+      <div class="hd-stat"><div class="hd-stat-val">${h.streak||0}</div><div class="hd-stat-lbl">Streak</div></div>
+      <div class="hd-stat"><div class="hd-stat-val">${h.bestStreak||0}</div><div class="hd-stat-lbl">Best</div></div>
+      <div class="hd-stat"><div class="hd-stat-val">${h.totalDone||0}</div><div class="hd-stat-lbl">Total Done</div></div>
+      <div class="hd-stat"><div class="hd-stat-val">${totalXp}</div><div class="hd-stat-lbl">XP Earned</div></div>
+      <div class="hd-stat"><div class="hd-stat-val">${totalHours}h</div><div class="hd-stat-lbl">Est. Hours</div></div>
+      <div class="hd-stat"><div class="hd-stat-val">${Math.round(strength)}%</div><div class="hd-stat-lbl">Consistency</div></div>
+    </div>
+    <!-- 30-day trend -->
+    <div style="font-family:sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;gap:6px;">
+      <div style="width:9px;height:9px;background:var(--text);"></div><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> 30-Day Trend
+    </div>
+    <div class="hd-trend-chart">
+      ${days30.map(ds => {
+        const snap = S.lockedDays && S.lockedDays[ds];
+        let done = false;
+        if (snap) done = !!snap.find(s => s.habitId === h.id && s.completed);
+        else if (ds === todayStr()) done = !!h.completedToday;
+        const isDue = isDueDateStr(h, ds);
+        const ht = isDue ? (done ? 38 : 12) : 4;
+        const color = !isDue ? '#e0e0d0' : done ? h.color : '#ffcccc';
+        return `<div class="hd-bar" style="height:${ht}px;background:${color};"></div>`;
+      }).join('')}
+    </div>
+    <!-- Mini calendar -->
+    <div style="font-family:sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;gap:6px;">
+      <div style="width:9px;height:9px;background:var(--text);"></div><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg> Last 4 Weeks
+    </div>
+    <div class="hd-mini-cal">
+      ${days30.map(ds => {
+        const snap = S.lockedDays && S.lockedDays[ds];
+        let done = false;
+        if (snap) done = !!snap.find(s => s.habitId === h.id && s.completed);
+        else if (ds === todayStr()) done = !!h.completedToday;
+        const isDue = isDueDateStr(h, ds);
+        const color = !isDue ? 'var(--bg)' : done ? h.color : '#ffeeee';
+        const border = ds === todayStr() ? 'border:2px solid var(--pink)' : '';
+        return `<div class="hd-cal-cell" style="background:${color};${border}" title="${ds}"></div>`;
+      }).join('')}
+    </div>
+    <!-- Perfect badges -->
+    ${(()=>{
+      const wDone = days30.slice(-7).every(ds => { const snap=S.lockedDays&&S.lockedDays[ds]; return !isDueDateStr(h,ds)||(snap?!!snap.find(s=>s.habitId===h.id&&s.completed):(ds===todayStr()&&h.completedToday)); });
+      const mDone = days30.every(ds => { const snap=S.lockedDays&&S.lockedDays[ds]; return !isDueDateStr(h,ds)||(snap?!!snap.find(s=>s.habitId===h.id&&s.completed):(ds===todayStr()&&h.completedToday)); });
+      return (wDone||mDone)?`<div style="display:flex;gap:5px;margin-bottom:11px;">${wDone?'<div class="perfect-week-badge">🏆 PERFECT WEEK</div>':''}${mDone?'<div class="perfect-month-badge">🌟 PERFECT MONTH</div>':''}</div>`:'';
+    })()}
+    <!-- Completion notes -->
+    <div style="font-family:sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;gap:6px;">
+      <div style="width:9px;height:9px;background:var(--text);"></div>Completion Notes
+    </div>
+    ${Object.entries(notes).length ? Object.entries(notes).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,10).map(([date,note])=>`<div class="hd-note-row"><div class="hd-note-date">${date}</div><div>${note}</div></div>`).join('') : `<div style="font-size:10px;color:var(--sub);padding:7px;">No notes yet. Add notes when completing habits.</div>`}
+    <!-- Science Tip -->
+    <div style="background:rgba(123,47,190,.1);border:1.5px solid var(--purple);padding:9px 11px;margin-bottom:11px;">
+      <div style="font-family:var(--font-mono, monospace);font-size:7px;color:var(--purple);text-transform:uppercase;margin-bottom:4px;"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><path d="M12 2a7 7 0 017 7c0 3.87-3 5-3 9H8c0-4-3-5.13-3-9a7 7 0 017-7z"/><line x1="8" y1="22" x2="16" y2="22"/><line x1="12" y1="18" x2="12" y2="22"/></svg> SCIENCE TIP</div>
+      <div style="font-size:10px;line-height:1.5;">${getHabitTip(h.category||'custom')}</div>
+    </div>
+    <!-- <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg> Milestone Badges -->
+    <div style="font-family:sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;gap:6px;">
+      <div style="width:9px;height:9px;background:var(--text);"></div><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg> Milestone Badges
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:11px;">
+      ${MILESTONE_BADGES.map(b=>{const earned=(h.bestStreak||0)>=b.days;return `<div style="padding:4px 8px;border:1.5px solid ${earned?b.color:'#444'};font-family:var(--font-mono, monospace);font-size:8px;font-weight:700;color:${earned?b.color:'#444'};${earned?`background:${b.color}22;`:''}">${b.icon} ${b.label}</div>`;}).join('')}
+    </div>
+    <!-- Next Badge -->
+    ${(()=>{const next=getNextBadge(h);return next?`<div style="font-size:10px;color:var(--sub);margin-bottom:11px;">Next: <strong style="color:${next.color}">${next.icon} ${next.label}</strong> at ${next.days} day streak (${next.days-(h.bestStreak||0)} to go)</div>`:'<div style="font-size:10px;color:var(--lime);margin-bottom:11px;">🏆 All badges earned!</div>';})()}
+    <!-- Actions -->
+    <div style="display:flex;gap:6px;margin-top:13px;flex-wrap:wrap;">
+      <button class="btn btn-sm" onclick="editHabit('${h.id}');closeHabitDetail();"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit</button>
+      <button class="btn btn-sm" onclick="openModal('modal-backfill')"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg> Backfill</button>
+      ${!h.archived?`<button class="btn btn-sm" onclick="archiveHabit('${h.id}');closeHabitDetail();"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg> Archive</button>`:''}
+      <button class="btn btn-sm btn-danger" onclick="closeHabitDetail();confirmDelete('${h.id}');"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg> Delete</button>
+    </div>
+  `;
+  $('habit-detail-overlay').classList.add('open');
+}
+function closeHabitDetail() { $('habit-detail-overlay').classList.remove('open'); }
+
+// ════════════════════════════════════════════════════════════
+// GOAL TREE
+// ════════════════════════════════════════════════════════════
+function openAddGoal() {
+  const cl = $('goal-habit-checklist'); if (!cl) return;
+  cl.innerHTML = S.habits.filter(h=>!h.archived).map(h => {
+    const ic = HABIT_ICONS.find(x=>x.id===h.icon);
+    const svg = ic?`<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">${ic.svg}</svg>`:'';
+    return `<label style="display:flex;align-items:center;gap:7px;padding:6px 0;cursor:pointer;border-bottom:1px solid var(--bg);">
+      <input type="checkbox" value="${h.id}" style="width:16px;height:16px;accent-color:var(--yellow);">
+      <span style="display:flex;align-items:center;gap:5px;">${svg}<span style="font-size:11px;">${h.name}</span></span>
+    </label>`;
+  }).join('');
+  $('goal-inp-name').value = ''; $('goal-inp-date').value = '';
+  openModal('modal-goal');
+}
+
+function saveGoal() {
+  const name = $('goal-inp-name')?.value.trim();
+  if (!name) { toast('Enter goal name!', 'error'); return; }
+  const habitIds = [...document.querySelectorAll('#goal-habit-checklist input:checked')].map(i=>i.value);
+  S.goals = S.goals || [];
+  S.goals.push({ id: 'g'+Date.now(), name, targetDate: $('goal-inp-date')?.value||'', habitIds, createdAt: todayStr() });
+  save(); renderGoals();
+  closeModal('modal-goal');
+  toast(`🎯 "${name}" goal created!`, 'success');
+}
+
+function deleteGoal(id) { S.goals=(S.goals||[]).filter(g=>g.id!==id); save(); renderGoals(); }
+
+function renderGoals() {
+  const el = $('goals-list'); 
+  if (!el) return;
+  S.goals = S.goals || [];
+  if (!S.goals.length) {
+    el.innerHTML = getEmptyState("goals");
+    return;
+  }
+  el.innerHTML = S.goals.map(g => {
+    const habits = (g.habitIds||[]).map(id=>S.habits.find(h=>h.id===id)).filter(Boolean);
+    const done = habits.filter(h=>h?.completedToday).length;
+    const total = habits.length;
+    const pct = total ? Math.round(done/total*100) : 0;
+    const daysLeft = g.targetDate ? Math.max(0, Math.ceil((new Date(g.targetDate)-new Date())/(864e5))) : null;
+    return `<div class="goal-card">
+      <div class="goal-header">
+        <div class="goal-icon" style="background:rgba(0,245,212,.1);border-color:var(--cyan);">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        </div>
+        <div style="flex:1;">
+          <div class="goal-title">${g.name}</div>
+          ${daysLeft!==null?`<div style="font-family:var(--font-mono, monospace);font-size:8px;color:var(--sub);">${daysLeft} days left · ${g.targetDate}</div>`:''}
+        </div>
+        <div class="goal-prog">${done}/${total}</div>
+        <button class="btn btn-xs" onclick="deleteGoal('${g.id}')" style="margin-left:5px;padding:3px 6px;color:var(--red);">×</button>
+      </div>
+      <div class="goal-bar-wrap"><div class="goal-bar-track"><div class="goal-bar-fill" style="width:${pct}%;"></div></div></div>
+      <div class="goal-habits">
+        ${habits.map(h => {
+          if (!h) return '';
+          const ic = HABIT_ICONS.find(x=>x.id===h.icon);
+          const svg = (ic && ic.svg)?`<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">${ic.svg}</svg>`:'';
+          return `<div class="gh-row"><div class="gh-dot${h.completedToday?' done':''}"></div>${svg}<span style="flex:1;${h.completedToday?'text-decoration:line-through;opacity:.5;':''}">${h.name}</span><span style="font-family:var(--font-mono, monospace);font-size:7px;color:var(--orange);">🔥${h.streak||0}</span></div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// AI HABIT SUGGESTIONS
+// ════════════════════════════════════════════════════════════
+function selAITime(el, val) {
+  document.querySelectorAll('#modal-ai-suggest .freq-btn').forEach(b=>b.classList.remove('sel'));
+  el.classList.add('sel'); $('ai-time-input').value = val;
+}
+
+async function generateHabitSuggestions() {
+  const goal = $('ai-goal-input')?.value.trim();
+  if (!goal) { toast('Enter your goal first!', 'error'); return; }
+  const time = $('ai-time-input')?.value || '30min';
+  const btn = $('ai-gen-btn');
+  const result = $('ai-suggestions-result');
+  if (!result) return;
+
+  if (btn) { btn.textContent = '⏳ THINKING...'; btn.disabled = true; }
+  result.innerHTML = `<div style="font-size:10px;color:var(--sub);padding:11px;text-align:center;">🦁 Building your habit system...</div>`;
+
+  const existing = S.habits.map(h=>h.name).slice(0,8).join(', ');
+  const prompt = `You are OHT AI Coach. User goal: "${goal}". Available time: ${time}/day. Existing habits: ${existing||'none'}.
+
+Create 4-5 specific, actionable habit suggestions. Respond ONLY in this exact JSON format, no other text:
+{"habits":[{"name":"Habit Name","icon":"run","category":"health","freq":"daily","target":1,"why":"1 sentence reason","time":"morning"}]}
+
+Icon must be one of: run,book,water,meditate,target,write,music,brain,pill,leaf,bike,art,money,people,clean,phone,clock,fire,bolt,heart,coffee,swim,check2,code,yoga,star,strong,food,sleep,lift
+Category: health,mind,productivity,wellness,social,finance,creativity
+Freq: daily,weekdays,weekends,3x/week,weekly`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 800, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    const text = data.content?.map(c=>c.text||'').join('') || '';
+    const clean = text.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(clean);
+    renderAISuggestions(parsed.habits || [], goal);
+  } catch(e) {
+    // Fallback suggestions
+    const fallbacks = {
+      fit: [{name:'Morning Exercise',icon:'run',category:'health',freq:'daily',target:1,why:'Builds base fitness fast',time:'morning'},{name:'Drink 8 Glasses',icon:'water',category:'wellness',freq:'daily',target:8,why:'Hydration accelerates results',time:'anytime'},{name:'Sleep 8 Hours',icon:'sleep',category:'wellness',freq:'daily',target:1,why:'Recovery is 50% of fitness',time:'evening'}],
+      read: [{name:'Read 20 Pages',icon:'book',category:'mind',freq:'daily',target:1,why:'20 pages = 1 book/month',time:'evening'},{name:'Take Notes',icon:'write',category:'mind',freq:'daily',target:1,why:'Retention jumps 40% with notes',time:'evening'}],
+      default: [{name:'Daily Focus Session',icon:'target',category:'productivity',freq:'daily',target:1,why:'Consistent daily action beats sporadic effort',time:'morning'},{name:'Reflect & Plan',icon:'write',category:'mind',freq:'daily',target:1,why:'5 min planning saves 1 hour',time:'evening'},{name:'Learn Something New',icon:'brain',category:'mind',freq:'daily',target:1,why:'Compound knowledge over time',time:'anytime'}]
+    };
+    const key = goal.toLowerCase().includes('fit')||goal.toLowerCase().includes('weight')||goal.toLowerCase().includes('exercise') ? 'fit' : goal.toLowerCase().includes('read')||goal.toLowerCase().includes('book') ? 'read' : 'default';
+    renderAISuggestions(fallbacks[key], goal);
+  }
+  if (btn) { btn.textContent = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><path d="M12 2a7 7 0 017 7c0 3.87-3 5-3 9H8c0-4-3-5.13-3-9a7 7 0 017-7z"/><line x1="8" y1="22" x2="16" y2="22"/><line x1="12" y1="18" x2="12" y2="22"/></svg> GENERATE'; btn.disabled = false; }
+}
+
+function renderAISuggestions(habits, goal) {
+  const result = $('ai-suggestions-result'); if (!result) return;
+  if (!habits.length) { result.innerHTML = `<div style="font-size:10px;color:var(--red);">Could not generate suggestions. Try again.</div>`; return; }
+  result.innerHTML = `<div style="font-family:sans-serif;font-weight:900;font-size:10px;color:var(--cyan);margin:9px 0 7px;text-transform:uppercase;">For: "${goal}"</div>` +
+    habits.map((h,i) => {
+      const ic = HABIT_ICONS.find(x=>x.id===h.icon) || HABIT_ICONS[0] || {svg:''};
+      const svg = ic.svg ? `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">${ic.svg}</svg>` : '';
+      const cat = CATS[h.category] || CATS.custom;
+      return `<div class="ai-suggest-item">
+        <div class="asi-icon">${svg}</div>
+        <div style="flex:1;">
+          <div class="asi-name">${h.name}</div>
+          <div class="asi-why">${h.why}</div>
+          <div class="asi-meta">
+            <span class="asi-tag">${h.freq}</span>
+            <span class="asi-tag">${cat.label}</span>
+            <span class="asi-tag">${h.time||'anytime'}</span>
+          </div>
+        </div>
+        <button class="btn btn-xs btn-success" onclick="addSuggestedHabit(${i})" data-idx="${i}" style="flex-shrink:0;">+ ADD</button>
+      </div>`;
+    }).join('');
+  // Store for adding
+  window._aiSuggestions = habits;
+}
+
+function addSuggestedHabit(idx) {
+  const h = (window._aiSuggestions||[])[idx]; if (!h) return;
+  const colors = { health:'#FF3CAC', mind:'#0057FF', productivity:'#FFE600', wellness:'#00F5D4', social:'#FF6B00', finance:'#AAFF00', creativity:'#7B2FBE', custom:'#888' };
+  S.habits.push({
+    id: 'h'+Date.now()+Math.floor(Math.random()*9999),
+    name: h.name, icon: h.icon||'target', color: colors[h.category]||'#00F5D4',
+    category: h.category||'productivity', freq: h.freq||'daily', target: h.target||1,
+    notes: h.why||'', progressive: 'none', stack: '', stake: '',
+    scheduledTime: '', completedToday: false, currentProgress: 0,
+    streak: 0, bestStreak: 0, totalDone: 0,
+    weekLog: Array(7).fill(false), monthLog: {}, todayXp: 0,
+    baseTarget: h.target||1, createdAt: new Date().toISOString()
+  });
+  // Disable button
+  document.querySelectorAll(`[data-idx="${idx}"]`).forEach(b => { b.textContent = '✓'; b.disabled = true; b.style.background = 'var(--lime)'; });
+  updateMissions(); save(); renderAll();
+  toast(`✅ "${h.name}" added!`, 'success');
+}
+
+// ════════════════════════════════════════════════════════════
+// TIME CAPSULE
+// ════════════════════════════════════════════════════════════
+function sealCapsule() {
+  const letter = $('capsule-letter')?.value.trim();
+  const openDate = $('capsule-open-date')?.value;
+  if (!letter) { toast('Write your letter first!', 'error'); return; }
+  if (!openDate || openDate <= todayStr()) { toast('Choose a future date!', 'error'); return; }
+  S.capsules = S.capsules || [];
+  S.capsules.push({
+    id: 'cap'+Date.now(), letter, openDate,
+    sealedDate: todayStr(),
+    statsAtSealing: { xp: S.xp||0, habits: S.habits.length, bestStreak: S.habits.reduce((m,h)=>Math.max(m,h.bestStreak||0),0) },
+    opened: false
+  });
+  save(); renderCapsules();
+  closeModal('modal-capsule');
+  playSound('ach');
+  toast('🔒 Time capsule sealed! See you in the future!', 'success');
+  if (S.confettiOn !== false) confetti(20);
+}
+
+function renderCapsules() {
+  const el = $('capsules-list'); if (!el) return;
+  S.capsules = S.capsules || [];
+  if (!S.capsules.length) {
+    el.innerHTML = `<div style="font-size:10px;color:var(--sub);padding:9px;border:var(--bo);">No time capsules yet. Write a letter to your future self!</div>`;
+    return;
+  }
+  const today = todayStr();
+  el.innerHTML = S.capsules.map(c => {
+    const canOpen = c.openDate <= today;
+    if (canOpen && !c.opened) {
+      c.opened = true; save();
+      setTimeout(() => { toast(`📬 Time capsule from ${c.sealedDate} is ready!`, 'success'); playSound('levelup'); }, 500);
+    }
+    return `<div class="capsule-card">
+      <div class="capsule-sealed ${c.opened?'open':''}">${c.opened?'✉ OPEN':'🔒 SEALED'}</div>
+      <div class="capsule-date">📬 ${c.opened?'Opened':'Opens'}: ${c.openDate}</div>
+      <div class="capsule-preview">Sealed on ${c.sealedDate} · ${c.statsAtSealing?.habits||0} habits · ${c.statsAtSealing?.xp||0} XP at time of writing</div>
+      ${c.opened ? `<div class="capsule-reveal"><div style="font-family:var(--font-mono, monospace);font-size:7px;color:var(--sub);text-transform:uppercase;margin-bottom:5px;">Dear Future Me...</div><div class="capsule-reveal-text">${c.letter}</div></div>` : `<div style="font-size:10px;color:#666;font-style:italic;padding:7px;border:1px dashed #444;">Your letter is sealed until ${c.openDate}</div>`}
+      <button class="btn btn-xs btn-danger" onclick="deleteCapsule('${c.id}')" style="margin-top:7px;">Delete</button>
+    </div>`;
+  }).join('');
+}
+function deleteCapsule(id) { S.capsules=(S.capsules||[]).filter(c=>c.id!==id); save(); renderCapsules(); }
+
+// ════════════════════════════════════════════════════════════
+// HABIT ROI DASHBOARD
+// ════════════════════════════════════════════════════════════
+function renderROI() {
+  const el = $('roi-list');
+  if (!el) return;
+  if (!S.habits.length) { el.innerHTML = `<div style="font-size:10px;color:var(--sub);">No habits yet.</div>`; return; }
+
+  const ah=S.habits.filter(h=>!h.archived);
+  const totalDone = ah.reduce((s,h)=>s+(h.totalDone||0),0);
+  const totalHours = (totalDone * 0.5).toFixed(0);
+  const totalXp = S.xp || 0;
+  const longestStreak = ah.reduce((m,h)=>Math.max(m,h.bestStreak||0),0);
+  const activeDays = Object.keys(S.lockedDays||{}).filter(d=>(S.lockedDays[d]||[]).some(s=>s.completed)).length;
+
+  el.innerHTML = `
+    <div class="roi-grid">
+      <div class="roi-card"><div class="roi-lbl">Total Completions</div><div class="roi-big">${totalDone}</div></div>
+      <div class="roi-card"><div class="roi-lbl">Hours Invested</div><div class="roi-big">${totalHours}h</div></div>
+      <div class="roi-card"><div class="roi-lbl">Active Days</div><div class="roi-big">${activeDays}</div></div>
+      <div class="roi-card"><div class="roi-lbl">Total XP</div><div class="roi-big">${totalXp}</div></div>
+    </div>
+    <div style="font-family:sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;margin-bottom:9px;">Per Habit ROI</div>
+    ${[...ah].sort((a,b)=>(b.totalDone||0)-(a.totalDone||0)).slice(0,8).map(h => {
+      const hrs = ((h.totalDone||0)*0.5).toFixed(1);
+      const consistency = getHabitStrength(h);
+      const sc = strengthColor(consistency);
+      const ic = HABIT_ICONS.find(x=>x.id===h.icon) || HABIT_ICONS[0] || {svg:''};
+      const svg = ic.svg ? `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${h.color}" stroke-width="2" stroke-linecap="round">${ic.svg}</svg>` : '';
+      return `<div class="roi-card" style="display:flex;align-items:center;gap:9px;padding:9px 11px;">
+        <div style="width:34px;height:34px;background:${h.color}22;border:2px solid ${h.color};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${svg}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.name}</div>
+          <div style="font-family:var(--font-mono, monospace);font-size:7px;color:var(--sub);">${h.totalDone||0} done · ~${hrs}h · 🔥${h.bestStreak||0} best</div>
+          <div style="height:4px;background:#eee;border:1px solid #ccc;overflow:hidden;margin-top:3px;"><div style="height:100%;width:${consistency}%;background:${sc};"></div></div>
+        </div>
+        <div style="font-family:sans-serif;font-weight:900;font-size:16px;color:${sc};flex-shrink:0;">${consistency}%</div>
+      </div>`;
+    }).join('')}`;
+}
+
+// ════════════════════════════════════════════════════════════
+// COMPLETION NOTE
+// ════════════════════════════════════════════════════════════
+// [// [_pendingNoteHabitId declared at top]
+function promptCompletionNote(id) {
+  _pendingNoteHabitId = id;
+  const h = S.habits.find(x=>x.id===id);
+  setTxt('cn-title', `📝 Note for: ${h?.name||'Habit'}`);
+  $('cn-input').value = '';
+  $('completion-note-overlay').classList.add('open');
+  setTimeout(() => $('cn-input')?.focus(), 300);
+}
+function confirmCompletionNote(save_note) {
+  $('completion-note-overlay').classList.remove('open');
+  if (save_note && _pendingNoteHabitId) {
+    const note = $('cn-input')?.value.trim();
+    if (note) {
+      S.completionNotes = S.completionNotes || {};
+      S.completionNotes[_pendingNoteHabitId] = S.completionNotes[_pendingNoteHabitId] || {};
+      S.completionNotes[_pendingNoteHabitId][todayStr()] = note;
+      save();
+      toast('📝 Note saved!', 'success');
+    }
+  }
+  _pendingNoteHabitId = null;
+}
+
+// ════════════════════════════════════════════════════════════
+// BACKFILL (fill past days)
+// ════════════════════════════════════════════════════════════
+// [// [_backfillData declared at top]
+function openBackfill() {
+  _backfillData = {};
+  const el = $('backfill-content'); if (!el) return;
+  const today = new Date();
+  const days = Array.from({length:7},(_,i)=>{
+    const d = new Date(today); d.setDate(d.getDate()-(i+1));
+    return d.toISOString().split('T')[0];
+  });
+  el.innerHTML = days.map(ds => {
+    const d = new Date(ds+'T12:00:00');
+    const dn = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+    return `<div style="margin-bottom:11px;">
+      <div style="font-family:sans-serif;font-weight:900;font-size:10px;color:var(--yellow);margin-bottom:5px;">${dn}, ${ds}</div>
+      ${S.habits.filter(h=>isDueDateStr(h,ds)).map(h=>{
+        const snap = S.lockedDays&&S.lockedDays[ds];
+        const alreadyDone = snap?!!snap.find(s=>s.habitId===h.id&&s.completed):false;
+        const ic = HABIT_ICONS.find(x=>x.id===h.icon);
+        const svg = ic?`<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">${ic.svg}</svg>`:'';
+        return `<div class="backfill-day">
+          <div class="backfill-check${alreadyDone?' done':''}" id="bf-${ds}-${h.id}" onclick="toggleBackfill('${ds}','${h.id}',this)">${alreadyDone?'✓':''}</div>
+          ${svg}<span style="flex:1;font-size:11px;">${h.name}</span>
+          ${alreadyDone?'<span style="font-family:\'IBM Plex Mono\',monospace;font-size:7px;color:var(--lime);">already logged</span>':''}
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+  openModal('modal-backfill');
+}
+function toggleBackfill(date, habitId, el) {
+  const key = `${date}-${habitId}`;
+  _backfillData[key] = !_backfillData[key];
+  el.classList.toggle('done', _backfillData[key]);
+  el.textContent = _backfillData[key] ? '✓' : '';
+}
+function saveBackfill() {
+  let count = 0;
+  const updatedHabits = new Set();
+  Object.entries(_backfillData).forEach(([key, done]) => {
+    if (!done) return;
+    const dashIdx = key.indexOf('-', 8); // after YYYY-MM-DD
+    const date = key.slice(0, 10);
+    const habitId = key.slice(11);
+    const h = S.habits.find(x=>x.id===habitId); if (!h) return;
+    S.lockedDays = S.lockedDays || {};
+    S.lockedDays[date] = S.lockedDays[date] || [];
+    if (!S.lockedDays[date].find(s=>s.habitId===habitId)) {
+      S.lockedDays[date].push({ habitId, habitName:h.name, habitIcon:h.icon, category:h.category, completed:true, xpEarned:5 });
+      S.history = S.history || [];
+      S.history.unshift({ id:'bf_'+habitId+'_'+date, habitId, habitName:h.name, habitIcon:h.icon, category:h.category, date, status:'done', xp:5, locked:true, backfilled:true });
+      h.totalDone = (h.totalDone||0) + 1;
+      updatedHabits.add(habitId);
+      count++;
+    }
+  });
+  // Recalculate streak for updated habits
+  updatedHabits.forEach(hId => {
+    const h = S.habits.find(x=>x.id===hId); if(!h) return;
+    const doneDates = new Set([
+      ...(S.history||[]).filter(e=>e.habitId===hId&&e.status==='done').map(e=>e.date),
+      ...Object.entries(S.lockedDays||{}).filter(([,snaps])=>snaps.some(s=>s.habitId===hId&&s.completed)).map(([d])=>d)
+    ]);
+    let streak=0;
+    const today=new Date();
+    for(let i=0;i<365;i++){
+      const d=new Date(today);d.setDate(d.getDate()-i);
+      const ds=d.toISOString().split('T')[0];
+      if(!isDueDateStr(h,ds)) continue;
+      if(doneDates.has(ds)) streak++;
+      else break;
+    }
+    h.streak=streak; h.bestStreak=Math.max(h.bestStreak||0,streak);
+  });
+  _invalidateStrengthCache();
+  if (count) { save(); renderAll(); toast(`${count} habit${count!==1?'s':''} backfilled + streaks updated!`, 'success'); }
+  else toast('No new entries to backfill', 'info');
+  closeModal('modal-backfill');
+}
+
+// ════════════════════════════════════════════════════════════
+// AMBIENT SOUND (Pomodoro)
+// ════════════════════════════════════════════════════════════
+// [declared at top]
+function toggleAmbient(type) {
+  if (_ambientNodes.length) {
+    _ambientNodes.forEach(n => { try { n.stop(); } catch(e){} });
+    _ambientNodes = [];
+    document.querySelectorAll('.ambient-btn').forEach(b=>b.classList.remove('active'));
+    return;
+  }
+  try {
+    _ambientCtx = _ambientCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const ctx = _ambientCtx;
+    if (type === 'rain') {
+      for (let i = 0; i < 5; i++) {
+        const buf = ctx.createBuffer(1, ctx.sampleRate*2, ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let j=0; j<d.length; j++) d[j] = (Math.random()*2-1)*0.15;
+        const src = ctx.createBufferSource(); src.buffer=buf; src.loop=true;
+        const f = ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=800+i*200;
+        const g = ctx.createGain(); g.gain.value=0.08;
+        src.connect(f); f.connect(g); g.connect(ctx.destination);
+        src.start(); _ambientNodes.push(src);
+      }
+    } else if (type === 'white') {
+      const buf = ctx.createBuffer(1, ctx.sampleRate*3, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let j=0; j<d.length; j++) d[j] = (Math.random()*2-1)*0.12;
+      const src = ctx.createBufferSource(); src.buffer=buf; src.loop=true;
+      const g = ctx.createGain(); g.gain.value=0.5;
+      src.connect(g); g.connect(ctx.destination); src.start(); _ambientNodes.push(src);
+    } else if (type === 'focus') {
+      [40, 80].forEach(freq => {
+        const osc = ctx.createOscillator(); const g = ctx.createGain();
+        osc.frequency.value = freq; osc.type = 'sine'; g.gain.value = 0.04;
+        osc.connect(g); g.connect(ctx.destination); osc.start(); _ambientNodes.push(osc);
+      });
+    }
+    document.querySelectorAll('.ambient-btn').forEach(b=>b.classList.toggle('active', b.dataset.type===type));
+    toast(`🎵 ${type} sound on`, 'info');
+  } catch(e) { toast('Audio not supported', 'error'); }
+}
+
+// ════════════════════════════════════════════════════════════
+// CSV EXPORT
+// ════════════════════════════════════════════════════════════
+function exportCSV() {
+  const rows = [['Date','Habit','Category','Status','XP','Streak']];
+  (S.history||[]).forEach(h => {
+    rows.push([h.date, h.habitName, h.category||'', h.status||'done', h.xp||10, '']);
+  });
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `oht_data_${todayStr()}.csv`; a.click();
+  toast('<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg> CSV exported!', 'success');
+}
+
+// [habitCard patch merged into original]
+
+// ════════════════════════════════════════════════════════════
+// RENDER NEW PAGES
+// ════════════════════════════════════════════════════════════
+function renderNewPages() {
+  renderAntiHabits();
+  renderRituals();
+  renderGoals();
+  renderCapsules();
+  renderROI();
+  renderJournal();
+}
+
+
+function openAntiHabitForm() {
+  const f = $('anti-add-form');
+  if (f) { f.style.display = f.style.display==='none'?'block':'none'; }
+}
+function saveAntiHabit() {
+  const name = $('anti-inp-name')?.value.trim();
+  if (!name) { toast('Enter habit name to break!', 'error'); return; }
+  const trigger = $('anti-inp-trigger')?.value.trim();
+  addAntiHabit(name, 'fire', trigger);
+  $('anti-inp-name').value = ''; $('anti-inp-trigger').value = '';
+  $('anti-add-form').style.display = 'none';
+}
+
+// ════════════════════════════════════════════════════════════
+// MORE MENU
+// ════════════════════════════════════════════════════════════
+// [// [_moreMenuOpen declared at top]
+
+function toggleMoreMenu() {
+  _moreMenuOpen ? closeMoreMenu() : openMoreMenu();
+}
+
+function openMoreMenu() {
+  _moreMenuOpen = true;
+  const overlay = $('more-menu-overlay');
+  const menu = $('more-menu');
+  // Reset inline styles yang di-set oleh closeMoreMenu
+  if(overlay) { overlay.style.opacity = ''; overlay.style.pointerEvents = ''; overlay.classList.add('open'); }
+  if(menu) { menu.style.opacity = ''; menu.style.pointerEvents = ''; menu.classList.add('open'); }
+  // Matikan dulu highlight nav manapun yang sedang aktif (mis. Habits),
+  // supaya hanya "More" saja yang menyala selama menu ini terbuka.
+  document.querySelectorAll('.bnav-item').forEach(n => n.classList.remove('active'));
+  const bn = $('bnav-more'); if(bn) bn.classList.add('active');
+  // Highlight active page in menu
+  const activePg = document.querySelector('.page.active');
+  const activePgId = activePg?.id?.replace('page-','');
+  document.querySelectorAll('.mm-item').forEach(el => {
+    const onclick = el.getAttribute('onclick') || '';
+    const match = onclick.match(/'(\w+)'/);
+    el.classList.toggle('active-page', match && match[1] === activePgId);
+  });
+}
+
+function closeMoreMenu() {
+  _moreMenuOpen = false;
+  const overlay = $('more-menu-overlay');
+  const menu = $('more-menu');
+  // Immediately hide - no transition delay
+  if(overlay) { overlay.style.opacity = '0'; overlay.style.pointerEvents = 'none'; overlay.classList.remove('open'); }
+  if(menu) { menu.style.opacity = '0'; menu.style.pointerEvents = 'none'; menu.classList.remove('open'); }
+  // Nyalakan lagi highlight sesuai halaman yang benar-benar aktif saat ini:
+  // kalau halaman itu salah satu tab utama, nyalakan tab itu; kalau bukan
+  // (halaman dibuka lewat menu More), biarkan "More" yang tetap menyala.
+  const activePg = document.querySelector('.page.active')?.id?.replace('page-','');
+  const mainPages = ['habits','wellness','friends'];
+  $('bnav-more')?.classList.remove('active');
+  document.querySelectorAll('.bnav-item').forEach(n => n.classList.remove('active'));
+  if (mainPages.includes(activePg)) {
+    $('bnav-'+activePg)?.classList.add('active');
+  } else {
+    $('bnav-more')?.classList.add('active');
+  }
+}
+
+function navigateMore(page) {
+  closeMoreMenu();
+  navigate(page);
+  if(page==='settings' && typeof renderSettingsAuth==='function') setTimeout(renderSettingsAuth,150);
+}
+
+// [navigate more-menu logic merged into original]
+
+// ════════════════════════════════════════════════════════════
+// 1. HAPTIC FEEDBACK
+// ════════════════════════════════════════════════════════════
+function haptic(type='light') {
+  if (!navigator.vibrate) return;
+  const patterns = { light:[10], medium:[20], heavy:[30,10,30], success:[10,50,10], error:[50,30,50], levelup:[30,50,30,50,100] };
+  navigator.vibrate(patterns[type]||patterns.light);
+}
+
+// ════════════════════════════════════════════════════════════
+// 2. HABIT MILESTONE BADGES
+// ════════════════════════════════════════════════════════════
+const MILESTONE_BADGES = [
+  { days:3,   icon:'<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--lime)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><path d="M12 3v1M12 20v1M4.22 4.22l.7.7M19.07 19.07l.71.71M1 12h2M21 12h2M4.22 19.78l.7-.7M19.07 4.93l.71-.71"/><circle cx="12" cy="12" r="4"/></svg>', label:'SEEDLING',  color:'#7ec850' },
+  { days:7,   icon:'🥉', label:'7 DAYS',    color:'#cd7f32' },
+  { days:14,  icon:'⚡', label:'2 WEEKS',   color:'#FFE600' },
+  { days:21,  icon:'💪', label:'21 DAYS',   color:'#FF6B00' },
+  { days:30,  icon:'🥈', label:'30 DAYS',   color:'#aaa' },
+  { days:50,  icon:'🔥', label:'50 DAYS',   color:'#FF3CAC' },
+  { days:66,  icon:'🧠', label:'66 DAYS',   color:'#7B2FBE' },
+  { days:100, icon:'🥇', label:'100 DAYS',  color:'#FFD700' },
+  { days:180, icon:'💎', label:'180 DAYS',  color:'#00F5D4' },
+  { days:365, icon:'👑', label:'1 YEAR',    color:'#FF3CAC' },
+];
+
+function getHabitBadges(h) {
+  return MILESTONE_BADGES.filter(b => (h.bestStreak||0) >= b.days);
+}
+
+function getNextBadge(h) {
+  return MILESTONE_BADGES.find(b => (h.bestStreak||0) < b.days);
+}
+
+function renderHabitBadges(h) {
+  const earned = getHabitBadges(h);
+  if (!earned.length) return '';
+  return earned.slice(-2).map(b =>
+    `<span style="font-size:10px;padding:1px 4px;border:1px solid ${b.color};color:${b.color};font-family:var(--font-mono, monospace);font-size:7px;font-weight:700;">${b.icon} ${b.label}</span>`
+  ).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// 3. DAILY LOGIN STREAK
+// ════════════════════════════════════════════════════════════
+function checkLoginStreak() {
+  const today = todayStr();
+  if (S.lastLoginDate === today) return;
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
+  const yStr = yesterday.toISOString().split('T')[0];
+  if (S.lastLoginDate === yStr) {
+    S.loginStreak = (S.loginStreak||0) + 1;
+  } else if (S.lastLoginDate && S.lastLoginDate < yStr) {
+    S.loginStreak = 1;
+  } else {
+    S.loginStreak = (S.loginStreak||0) + 1;
+  }
+  S.lastLoginDate = today;
+  const xpBonus = Math.min(25, 5 + Math.floor((S.loginStreak||1)/7)*5);
+  S.xp = (S.xp||0) + xpBonus;
+  save();
+  if ((S.loginStreak||1) > 1) {
+    setTimeout(() => notify(`<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--yellow)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg> Day ${S.loginStreak} login streak! +${xpBonus} XP`, '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--yellow)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>', 3000), 1500);
+  }
+  // Milestone notifs
+  if ([7,14,30,50,100].includes(S.loginStreak)) {
+    setTimeout(() => { playSound('ach'); notify(`🏆 ${S.loginStreak} day login streak! Legend.`, '👑', 4000); }, 2000);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// 4. UNDO LAST ACTION
+// ════════════════════════════════════════════════════════════
+// [// [_undoStack declared at top]
+function pushUndo(label, fn) {
+  _undoStack.push({ label, fn, time: Date.now() });
+  if (_undoStack.length > 5) _undoStack.shift();
+  showUndoToast(label, fn);
+}
+function showUndoToast(label, fn) {
+  // Remove existing undo toast
+  document.querySelectorAll('.undo-toast').forEach(t => t.remove());
+  const tc = $('toast-container'); if (!tc) return;
+  const t = document.createElement('div');
+  t.className = 'toast undo-toast';
+  t.style.cssText = 'justify-content:space-between;max-width:300px;';
+  t.innerHTML = `<span style="flex:1;font-size:10px;">${label}</span>
+    <button onclick="doUndo(this)" style="background:var(--yellow);color:var(--black);border:none;padding:3px 8px;font-family:var(--font-mono, monospace);font-size:9px;font-weight:700;cursor:pointer;">UNDO</button>`;
+  t._undoFn = fn;
+  tc.appendChild(t);
+  const timer = setTimeout(() => { if (t.parentNode) t.remove(); }, 4500);
+  t._timer = timer;
+}
+function doUndo(btn) {
+  const t = btn.closest('.undo-toast');
+  if (t?._undoFn) { clearTimeout(t._timer); t._undoFn(); t.remove(); toast('↩ Undone!', 'info'); }
+}
+
+// ════════════════════════════════════════════════════════════
+// 5. BEST TIME OF DAY ANALYSIS
+// ════════════════════════════════════════════════════════════
+function getBestTimeAnalysis() {
+  // Group completions by hour from history
+  const hourCounts = Array(24).fill(0);
+  (S.history||[]).forEach(h => {
+    if (!h.completedAt) return;
+    const hr = new Date(h.completedAt).getHours();
+    hourCounts[hr]++;
+  });
+  const max = Math.max(...hourCounts);
+  if (max === 0) return null;
+  const bestHour = hourCounts.indexOf(max);
+  const periods = { morning: [5,6,7,8,9,10,11], afternoon: [12,13,14,15,16,17], evening: [18,19,20,21], night: [22,23,0,1,2,3,4] };
+  let period = 'anytime';
+  for (const [p, hours] of Object.entries(periods)) { if (hours.includes(bestHour)) { period = p; break; } }
+  const ampm = bestHour < 12 ? 'AM' : 'PM';
+  const h12 = bestHour % 12 || 12;
+  return { hour: bestHour, display: `${h12}:00 ${ampm}`, period, count: max };
+}
+
+function renderBestTimeCard() {
+  const el = $('best-time-card'); if (!el) return;
+  const analysis = getBestTimeAnalysis();
+  const periodIcons = { morning:'🌅', afternoon:'☀️', evening:'🌙', night:'🌃', anytime:'⚡' };
+  if (!analysis) {
+    el.innerHTML = `<div style="font-size:10px;color:var(--sub);">Complete more habits with timestamps to see your peak performance time.</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:11px;">
+      <div style="font-size:36px;">${periodIcons[analysis.period]}</div>
+      <div>
+        <div style="font-family:sans-serif;font-weight:900;font-size:22px;color:var(--yellow);line-height:1;">${analysis.display}</div>
+        <div style="font-family:var(--font-mono, monospace);font-size:8px;color:var(--sub);text-transform:uppercase;margin-top:2px;">Peak ${analysis.period} · ${analysis.count} completions</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px;">Schedule your hardest habits around this time.</div>
+      </div>
+    </div>`;
+}
+
+// ════════════════════════════════════════════════════════════
+// 6. HABIT SCIENCE TIPS
+// ════════════════════════════════════════════════════════════
+const HABIT_TIPS = {
+  health: ["Cue-routine-reward loop makes habits automatic in 66 days on average.", "Exercise increases BDNF — the brain's growth hormone — by up to 2x.", "Morning workouts boost metabolism for 14 hours after."],
+  mind: ["Reading 20 pages/day = 24 books/year.", "Meditation rewires the amygdala, reducing stress response in 8 weeks.", "Writing by hand activates memory consolidation 40% better than typing."],
+  productivity: ["The 2-minute rule: if it takes less than 2 min, do it now.", "Deep work blocks of 90 min align with your ultradian rhythm.", "Batching similar tasks reduces context-switching cost by 40%."],
+  wellness: ["Drinking water first thing in the morning boosts energy by 8%.", "7-9 hours of sleep is when 70% of emotional memory processing occurs.", "Cold exposure for 2 min increases dopamine by 250%."],
+  social: ["Strong social bonds are the #1 predictor of longevity — more than exercise.", "Expressing gratitude to others releases oxytocin in both people.", "Regular check-ins with friends reduce cortisol levels significantly."],
+  finance: ["Automating savings removes willpower from the equation entirely.", "Tracking expenses reduces unnecessary spending by 15-20% on average.", "The 24-hour rule prevents 80% of impulse purchases."],
+  creativity: ["Creativity peaks in unfocused states — daydreaming is productive.", "Constraints breed creativity: limits force novel solutions.", "Sleep consolidates creative insights — problems often solve overnight."],
+  custom: ["Habits stack on existing behaviors. Attach new habits to old ones.", "Implementation intentions (when/where/how) triple habit success rates.", "Missing once is human. Missing twice is a new habit forming."],
+};
+
+function getHabitTip(category) {
+  const tips = HABIT_TIPS[category] || HABIT_TIPS.custom;
+  return tips[Math.floor(Math.random() * tips.length)];
+}
+
+// ════════════════════════════════════════════════════════════
+// 7. MONTHLY AI RETROSPECTIVE
+// ════════════════════════════════════════════════════════════
+async function generateMonthlyRetro() {
+  const btn = $('monthly-retro-btn');
+  if (btn) { btn.textContent = '⏳ GENERATING...'; btn.disabled = true; }
+  const el = $('monthly-retro-result'); if (!el) return;
+
+  const now = new Date();
+  const monthStr = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const hist = (S.history||[]).filter(h => h.date >= monthStart && h.status === 'done');
+  const uniqueDays = [...new Set(hist.map(h=>h.date))].length;
+  const topHabit = [...ah].sort((a,b)=>(b.totalDone||0)-(a.totalDone||0))[0];
+  const weakHabit = [...S.habits].filter(h=>getHabitStrength(h)<40)[0];
+  const totalXpMonth = hist.reduce((s,h)=>s+(h.xp||10),0);
+
+  const prompt = `You are OHT AI Coach. Write a monthly retrospective for ${monthStr}.
+User: ${S.name||'User'} | Level ${Math.max(1,Math.floor((S.xp||0)/100)+1)} | ${S.habits.length} habits
+Month stats: ${hist.length} completions, ${uniqueDays} active days, ${totalXpMonth} XP earned
+Strongest: ${topHabit?`${topHabit.name} (🔥${topHabit.streak})`:'-'}
+Needs work: ${weakHabit?`${weakHabit.name} (${getHabitStrength(weakHabit)}% strength)`:'-'}
+
+Write 3 short paragraphs: (1) What went well, (2) Pattern you noticed, (3) One focus for next month.
+Be specific, direct, encouraging but honest. Max 120 words total.`;
+
+  el.innerHTML = `<div style="font-size:10px;color:var(--sub);">🦁 Analyzing your month...</div>`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:300, messages:[{role:'user',content:prompt}]})
+    });
+    const data = await res.json();
+    const text = data.content?.map(c=>c.text||'').join('') || '';
+    S.monthlyRetros = S.monthlyRetros || [];
+    S.monthlyRetros.unshift({ month: monthStr, text, date: todayStr() });
+    if (S.monthlyRetros.length > 12) S.monthlyRetros = S.monthlyRetros.slice(0,12);
+    save();
+    el.innerHTML = `<div style="font-size:11px;line-height:1.6;color:var(--text);">${text.replace(/\n\n/g,'</div><div style="font-size:11px;line-height:1.6;color:var(--text);margin-top:7px;">')}</div>`;
+  } catch(e) {
+    const fallback = `${monthStr} showed ${uniqueDays} active days out of ${now.getDate()} possible — that's ${Math.round(uniqueDays/now.getDate()*100)}% consistency. ${topHabit?`${topHabit.name} was your strongest habit this month.`:''} ${weakHabit?`Focus on ${weakHabit.name} next month — it needs the most attention.`:'Keep the momentum going next month.'}`;
+    el.innerHTML = `<div style="font-size:11px;line-height:1.6;color:var(--text);">${fallback}</div>`;
+  }
+  if (btn) { btn.textContent = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;"><path d="M12 2a7 7 0 017 7c0 3.87-3 5-3 9H8c0-4-3-5.13-3-9a7 7 0 017-7z"/><line x1="8" y1="22" x2="16" y2="22"/><line x1="12" y1="18" x2="12" y2="22"/></svg> GENERATE'; btn.disabled = false; }
+}
+
+// ════════════════════════════════════════════════════════════
+// 8. LONG-PRESS CONTEXT MENU
+// ════════════════════════════════════════════════════════════
+// [// [_longPressTimer declared at top]
+// [// [_contextMenuHabitId declared at top]
+
+document.addEventListener('touchstart', e => {
+  const card = e.target.closest('.habit-card');
+  if (!card) return;
+  const idMatch = card.id?.match(/(?:hc|th)-(.+)/);
+  if (!idMatch) return;
+  _longPressTimer = setTimeout(() => {
+    haptic('medium');
+    showContextMenu(idMatch[1], e.touches[0].clientX, e.touches[0].clientY);
+  }, 500);
+}, { passive: true });
+
+document.addEventListener('touchend', () => {
+  if (_longPressTimer) { clearTimeout(_longPressTimer); _longPressTimer = null; }
+}, { passive: true });
+
+document.addEventListener('touchmove', () => {
+  if (_longPressTimer) { clearTimeout(_longPressTimer); _longPressTimer = null; }
+}, { passive: true });
+
+function showContextMenu(habitId, x, y) {
+  const h = S.habits.find(x => x.id === habitId); if (!h) return;
+  _contextMenuHabitId = habitId;
+  let menu = $('context-menu');
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = 'context-menu';
+    menu.style.cssText = `position:fixed;background:var(--black);border:2.5px solid var(--yellow);box-shadow:4px 4px 0 var(--black);z-index:9000;min-width:180px;`;
+    document.body.appendChild(menu);
+    // Backdrop
+    const bd = document.createElement('div');
+    bd.id = 'context-backdrop';
+    bd.style.cssText = 'position:fixed;inset:0;z-index:8999;';
+    bd.onclick = closeContextMenu;
+    document.body.appendChild(bd);
+  }
+  const items = [
+    { icon:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>', label:'Edit', fn:`editHabit('${habitId}');closeContextMenu();` },
+    { icon:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>', label:'Skip Today', fn:`skipHabitToday('${habitId}');closeContextMenu();` },
+    { icon:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>', label: h.paused?'Resume':'Pause', fn:`togglePauseHabit('${habitId}');closeContextMenu();` },
+    { icon:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', label:'View Detail', fn:`openHabitDetail('${habitId}');closeContextMenu();` },
+    { icon:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>', label:'Archive', fn:`archiveHabit('${habitId}');closeContextMenu();` },
+    { icon:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#FF1744" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>', label:'Delete', fn:`closeContextMenu();confirmDelete('${habitId}');`, color:'var(--red)' },
+  ];
+  menu.innerHTML = `<div style="padding:7px 11px;border-bottom:1px solid #333;font-family:sans-serif;font-weight:900;font-size:10px;color:var(--yellow);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h.icon?'':''} ${h.name}</div>`
+    + items.map(it => `<div onclick="${it.fn}" style="display:flex;align-items:center;gap:9px;padding:11px 13px;cursor:pointer;border-bottom:1px solid #1a1a1a;color:${it.color||'var(--text)'};" onmouseenter="this.style.background='rgba(255,230,0,.1)'" onmouseleave="this.style.background=''">${it.icon}<span style="font-size:11px;font-weight:600;">${it.label}</span></div>`).join('');
+
+  // Position: ensure on screen
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const mw = 200, mh = items.length * 44 + 40;
+  let left = Math.min(x, vw - mw - 10);
+  let top = Math.min(y, vh - mh - 10);
+  menu.style.left = left + 'px';
+  menu.style.top = top + 'px';
+  menu.style.display = 'block';
+}
+
+function closeContextMenu() {
+  const m = $('context-menu'); if (m) m.style.display = 'none';
+  const bd = $('context-backdrop'); if (bd) bd.remove();
+  const newBd = document.createElement('div');
+  newBd.id = 'context-backdrop';
+  // Don't re-add — just remove backdrop
+}
+
+// ════════════════════════════════════════════════════════════
+// 9. SHARE AS IMAGE (Canvas)
+// ════════════════════════════════════════════════════════════
+function shareAsImage() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 540; canvas.height = 960;
+  const ctx = canvas.getContext('2d');
+  const bg = '#FFF9E6';
+  const surface = '#FFFFF0';
+  const text = '#0a0a0a';
+  const accent = '#FFE600';
+  const cyan = '#00F5D4';
+
+  // Background
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 540, 960);
+
+  // Header
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, 540, 80);
+  ctx.fillStyle = accent;
+  ctx.font = 'bold 32px Arial';
+  ctx.fillText('OHT', 24, 52);
+  ctx.fillStyle = '#FF3CAC';
+  ctx.font = 'bold 32px Arial';
+  ctx.fillText('●', 96, 52);
+
+  // Date
+  const now = new Date();
+  ctx.fillStyle = '#888';
+  ctx.font = '14px Arial';
+  ctx.fillText(now.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric', year:'numeric'}), 24, 100);
+
+  // Stats row
+  const done = S.habits.filter(h=>h.completedToday).length;
+  const total = S.habits.length;
+  const pct = total > 0 ? Math.round(done/total*100) : 0;
+  const best = S.habits.reduce((m,h)=>Math.max(m,h.bestStreak||0),0);
+
+  const stats = [{v:`${pct}%`, l:'TODAY'},{v:`${best}d`, l:'STREAK'},{v:`${S.xp||0}`, l:'XP'},{v:`${S.habits.length}`, l:'HABITS'}];
+  stats.forEach((s,i) => {
+    const x = 24 + i * 124;
+    ctx.fillStyle = surface;
+    ctx.fillRect(x, 120, 115, 70);
+    ctx.strokeStyle = i===0?accent:cyan;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, 120, 115, 70);
+    ctx.fillStyle = i===0?accent:text;
+    ctx.font = 'bold 28px Arial';
+    ctx.fillText(s.v, x+10, 158);
+    ctx.fillStyle = '#888';
+    ctx.font = '11px Arial';
+    ctx.fillText(s.l, x+10, 178);
+  });
+
+  // User + level
+  const lvl = Math.max(1,Math.floor((S.xp||0)/100)+1);
+  ctx.fillStyle = text;
+  ctx.font = 'bold 22px Arial';
+  ctx.fillText(S.name||'User', 24, 230);
+  ctx.fillStyle = cyan;
+  ctx.font = '14px Arial';
+  ctx.fillText(`LVL ${lvl} — ${LVL_NAMES[Math.min(lvl-1,LVL_NAMES.length-1)]}`, 24, 252);
+
+  // Habits done today
+  ctx.fillStyle = text;
+  ctx.font = 'bold 16px Arial';
+  ctx.fillText('COMPLETED TODAY', 24, 290);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(24, 298, 492, 1);
+
+  const doneHabits = S.habits.filter(h=>h.completedToday).slice(0,6);
+  doneHabits.forEach((h,i) => {
+    const row = Math.floor(i/2), col = i%2;
+    const x = 24 + col*250, y = 315 + row*50;
+    ctx.fillStyle = h.color + '22';
+    ctx.fillRect(x, y, 235, 42);
+    ctx.strokeStyle = h.color;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x, y, 235, 42);
+    ctx.fillStyle = accent;
+    ctx.font = 'bold 20px Arial';
+    ctx.fillText('✓', x+10, y+27);
+    ctx.fillStyle = text;
+    ctx.font = 'bold 13px Arial';
+    const name = h.name.length > 16 ? h.name.slice(0,15)+'…' : h.name;
+    ctx.fillText(name, x+36, y+27);
+  });
+
+  // Progress bar
+  const barY = 520;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(24, barY, 492, 12);
+  ctx.fillStyle = pct===100?'#AAFF00':accent;
+  ctx.fillRect(24, barY, Math.round(492*pct/100), 12);
+  ctx.fillStyle = text;
+  ctx.font = 'bold 14px Arial';
+  ctx.fillText(`${done}/${total} habits · ${pct}% complete`, 24, barY+32);
+
+  // Footer
+  ctx.fillStyle = '#333';
+  ctx.fillRect(0, 900, 540, 60);
+  ctx.fillStyle = accent;
+  ctx.font = 'bold 16px Arial';
+  ctx.fillText('OHT — Orias Habit Tracker', 24, 938);
+  ctx.fillStyle = '#555';
+  ctx.font = '12px Arial';
+  ctx.fillText(todayStr(), 400, 938);
+
+  // Download
+  canvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `oht_progress_${todayStr()}.png`; a.click();
+    URL.revokeObjectURL(url);
+    toast('📸 Progress image saved!', 'success');
+  }, 'image/png');
+}
+
+// ════════════════════════════════════════════════════════════
+// PATCH INIT: add login streak + haptic to toggleHabit
+// ════════════════════════════════════════════════════════════
+// toggleHabit — final with haptic + undo + level-up + xp pulse + badges
+const _origToggleHabitBatch = _baseToggleHabit;
+function toggleHabit(id, pfx) {
+  const h = S.habits.find(x=>x.id===id); if (!h) return;
+  const wasChecked = h.completedToday;
+  const prevXp = S.xp || 0;
+  const prevLvl = Math.max(1, Math.floor(prevXp/100)+1);
+  _origToggleHabitBatch(id, pfx);
+  haptic(wasChecked ? 'light' : 'success');
+  // XP bar pulse
+  const xb = $('xp-bar');
+  if (xb) { xb.classList.remove('pulse'); void xb.offsetWidth; xb.classList.add('pulse'); setTimeout(()=>xb.classList.remove('pulse'),700); }
+  // Level up cinematic
+  const newLvl = Math.max(1, Math.floor((S.xp||0)/100)+1);
+  if (newLvl > prevLvl) setTimeout(()=>showLevelUp(newLvl, LVL_NAMES[Math.min(newLvl-1,LVL_NAMES.length-1)]), 500);
+  if (!wasChecked) {
+    // Save completion timestamp
+    S.history = S.history || [];
+    const entry = S.history.find(e=>e.habitId===id&&e.date===todayStr()&&!e.locked);
+    if (entry) entry.completedAt = new Date().toISOString();
+    // Undo support
+    pushUndo(`↩ Uncheck "${h.name}"`, () => { _origToggleHabitBatch(id, pfx); });
+    // Check milestone badges
+    const newBadge = MILESTONE_BADGES.find(b => (h.bestStreak||0) === b.days);
+    if (newBadge) setTimeout(()=>notify(`${newBadge.icon} ${newBadge.label} badge on "${h.name}"!`, newBadge.icon, 4000), 600);
+  }
+}
+
+// [login streak check added to original init]
+
+
+function toggleHabitActions(e, id, pfx) {
+  e.stopPropagation();
+  const card = $(`${pfx}-${id}`);
+  if (!card) return;
+  // Close all other open cards first
+  document.querySelectorAll('.habit-card.actions-open').forEach(c => {
+    if (c !== card) c.classList.remove('actions-open');
+  });
+  card.classList.toggle('actions-open');
+}
+// Close actions when tapping elsewhere
+document.addEventListener('touchstart', e => {
+  if (!e.target.closest('.habit-expand-btn') && !e.target.closest('.habit-actions')) {
+    document.querySelectorAll('.habit-card.actions-open').forEach(c => c.classList.remove('actions-open'));
+  }
+}, { passive: true });
+
+
+// [let _historyCatFilter moved to top]
+function setHistoryCatFilter(cat, el) {
+  _historyCatFilter = cat;
+  document.querySelectorAll('#history-cat-tabs .ctab').forEach(t => t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  renderHistory();
+}
+
+
+function togglePinHabit(id) {
+  const h = S.habits.find(x=>x.id===id); if(!h) return;
+  h.pinned = !h.pinned;
+  save(); renderAll();
+  toast(h.pinned ? 'Pinned to top!' : 'Unpinned', 'info');
+}
+
+
+
+
+// [let _todayGroupByTime moved to top]
+function getTimeOfDay(scheduledTime) {
+  if (!scheduledTime) return 'anytime';
+  const h = parseInt(scheduledTime.split(':')[0]);
+  if (h >= 5 && h < 12) return 'morning';
+  if (h >= 12 && h < 17) return 'afternoon';
+  if (h >= 17 && h < 22) return 'evening';
+  return 'night';
+}
+
+
+// [let _insightFilter moved to top]
+function setInsightFilter(src, el) {
+  _insightFilter = src;
+  document.querySelectorAll('#page-streaks .btn-xs').forEach(b => b.classList.remove('btn-primary'));
+  if (el) el.classList.add('btn-primary');
+  renderInsightFeed();
+}
+
+
+function setFocusTab(tab, el) {
+  if (!tab) tab = 'timer';
+  ['timer','wellness','journal'].forEach(t => {
+    const s = $('focus-section-'+t);
+    if (s) s.style.display = t===tab ? 'block' : 'none';
+    const btn = $('focus-tab-'+t);
+    if (btn) btn.classList.toggle('active', t===tab);
+  });
+  if (tab==='wellness') { renderWaterTracker(); renderSleepLog(); renderIntention(); }
+  if (tab==='journal') { renderGratitudeList(); renderJournal(); }
+  if (tab==='timer') { buildFocusHabitPicker(); updateFocusUI(); }
+}
+
+
+function filterSettings(q) {
+  q = q.toLowerCase().trim();
+  document.querySelectorAll('.settings-block').forEach(block => {
+    if (!q) { block.style.display = 'block'; return; }
+    const text = block.textContent.toLowerCase();
+    block.style.display = text.includes(q) ? 'block' : 'none';
+  });
+}
+
+
+// Handle keyboard on mobile — shrink modals
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    const ratio = window.visualViewport.height / window.innerHeight;
+    document.querySelectorAll('.modal').forEach(m => {
+      m.style.maxHeight = ratio < 0.8 ? (window.visualViewport.height * 0.88) + 'px' : '';
+    });
+  });
+}
+
+
+function saveHabitAndAddAnother() {
+  const name = $('inp-name')?.value.trim();
+  if (!name) { toast('Enter a habit name!', 'error'); return; }
+  saveHabit();
+  setTimeout(() => { openAddModal(); }, 200);
+}
+
+
+// Swipe right to close habit detail overlay
+(function() {
+  let _detailSwipeStart = null;
+  const overlay = () => $('habit-detail-overlay');
+  document.addEventListener('touchstart', e => {
+    const ov = overlay();
+    if (ov?.classList.contains('open') && e.touches[0].clientX < 30) {
+      _detailSwipeStart = e.touches[0].clientX;
+    }
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (_detailSwipeStart !== null) {
+      const dx = e.changedTouches[0].clientX - _detailSwipeStart;
+      if (dx > 60) closeHabitDetail();
+      _detailSwipeStart = null;
+    }
+  }, { passive: true });
+})();
+
+
+function setStreaksTab(tab, el) {
+  ['missions','challenges'].forEach(t => {
+    const s = $('streaks-section-'+t);
+    if (s) s.style.display = t===tab ? 'block' : 'none';
+    const btn = $('stab-'+t);
+    if (btn) btn.classList.toggle('active', t===tab);
+  });
+  if (tab==='missions') renderMissions();
+  if (tab==='challenges') renderChallenges();
+}
+
+
+function getEmptyState(type) {
+  const states = {
+    habits: {
+      icon: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="var(--yellow)" stroke-width="1.5" stroke-linecap="round"><path d="M12 2C12 2 5 10 5 15a7 7 0 0014 0c0-5-7-13-7-13z"/><line x1="12" y1="15" x2="12" y2="19"/><line x1="9" y1="22" x2="15" y2="22"/></svg>',
+      title: "PLANT YOUR FIRST SEED",
+      sub: "Every legend started with one habit. What's yours?",
+      cta: { label: "CREATE FIRST HABIT", fn: 'openAddModal()' }
+    },
+    streaks: {
+      icon: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="var(--orange)" stroke-width="1.5" stroke-linecap="round"><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 01-7 7"/></svg>',
+      title: "NO STREAKS YET",
+      sub: "Complete a habit today to start your first streak.",
+      cta: null
+    },
+    anti: {
+      icon: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="var(--red)" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
+      title: "NOTHING TO BREAK YET",
+      sub: "Add a bad habit you want to eliminate. Every day you resist = 1 streak day.",
+      cta: { label: "+ ADD BAD HABIT", fn: 'openAntiHabitForm()' }
+    },
+    goals: {
+      icon: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+      title: "NO GOALS YET",
+      sub: "Set a big goal, link your habits to it, and watch progress happen automatically.",
+      cta: { label: "+ SET A GOAL", fn: 'openAddGoal()' }
+    },
+    rituals: {
+      icon: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="var(--orange)" stroke-width="1.5" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+      title: "NO RITUALS YET",
+      sub: "Bundle habits into morning, evening, or custom ritual sequences.",
+      cta: { label: "+ CREATE RITUAL", fn: 'openAddRitual()' }
+    },
+    insights: {
+      icon: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="var(--purple)" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+      title: "NO INSIGHTS YET",
+      sub: "Complete a Weekly Review to generate insights.",
+      cta: { label: "WEEKLY REVIEW", fn: "openWeeklyReview()" }
+    },
+    gratitude: {
+      icon: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="var(--pink)" stroke-width="1.5" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>',
+      title: "START WITH GRATITUDE",
+      sub: "What's one thing you're grateful for right now?",
+      cta: null
+    },
+    coach: {
+      icon: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="var(--purple)" stroke-width="1.5" stroke-linecap="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>',
+      title: "YOUR COACH IS READY",
+      sub: "Tap REFRESH for your first personalized insight, or ask anything.",
+      cta: null
+    },
+  };
+  const s = states[type] || states.habits;
+  return `<div class="empty" style="text-align:center;padding:24px 16px;">
+    <div style="display:flex;justify-content:center;margin-bottom:11px;">${s.icon}</div>
+    <div class="empty-title" style="font-size:13px;margin-bottom:6px;">${s.title}</div>
+    <div class="empty-sub" style="font-size:10px;line-height:1.5;margin-bottom:${s.cta?'13px':'0'};">${s.sub}</div>
+    ${s.cta?`<button class="btn btn-sm btn-primary" onclick="${s.cta.fn}" style="margin:0 auto;">${s.cta.label}</button>`:''}
+  </div>`;
+}
+
+
+const FREQ_DESCS = {
+  'daily': 'Every single day — no excuses.',
+  'weekdays': 'Mon–Fri. Weekend is your rest time.',
+  'weekends': 'Sat & Sun only. Weekend warrior mode.',
+  '3x/week': 'Mon, Wed, Fri. Consistent spacing.',
+  'weekly': 'Once per week. Usually Monday.',
+  'monthly': 'Once per month. Monthly milestone.'
+};
+// [selFreq merged]
+
+
+function toggleRitualExpand(id) {
+  const card = document.querySelector('.ritual-card[data-rid="' + id + '"]');
+  if (!card) return;
+  card.classList.toggle('collapsed');
+  const list = card.querySelector('.ritual-habits-list');
+  if (list) list.style.display = card.classList.contains('collapsed') ? 'none' : '';
+}
+
+// ════════════════════════════════════════════════════════════
+// BATCH ALPHA
+// ════════════════════════════════════════════════════════════
+
+// ── 1. PERFECT DAY CELEBRATION ──────────────────────────────
+function showPerfectDay() {
+  if ($('perfect-day-overlay')) return;
+  const el = document.createElement('div');
+  el.id = 'perfect-day-overlay';
+  el.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.85);animation:pdFadeIn .3s ease;';
+  const done = S.habits.filter(h=>h.completedToday&&!h.archived).length;
+  const total = S.habits.filter(h=>!h.archived&&isDueToday(h)).length;
+  el.innerHTML = `
+    <div style="text-align:center;padding:24px;max-width:320px;">
+      <div style="font-size:64px;animation:pdBounce .6s ease;">🏆</div>
+      <div style="font-family:sans-serif;font-weight:900;font-size:28px;color:var(--yellow);margin:11px 0 5px;text-transform:uppercase;letter-spacing:2px;">PERFECT DAY!</div>
+      <div style="font-family:var(--font-mono, monospace);font-size:11px;color:var(--cyan);margin-bottom:11px;">${done}/${total} HABITS COMPLETE</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13px;color:#ccc;line-height:1.5;margin-bottom:18px;">"You do not rise to the level of your goals. You fall to the level of your systems."</div>
+      <div style="display:flex;gap:9px;justify-content:center;flex-wrap:wrap;">
+        <div style="padding:7px 14px;border:2px solid var(--yellow);font-family:var(--font-mono, monospace);font-size:9px;color:var(--yellow);">+${done*10} XP EARNED</div>
+        <div style="padding:7px 14px;border:2px solid var(--lime);font-family:var(--font-mono, monospace);font-size:9px;color:var(--lime);">STREAK PROTECTED</div>
+      </div>
+      <button onclick="this.closest('#perfect-day-overlay').remove()" style="margin-top:18px;background:var(--yellow);border:none;padding:11px 28px;font-family:sans-serif;font-weight:900;font-size:12px;cursor:pointer;color:var(--black);letter-spacing:1px;">LET'S GO →</button>
+    </div>`;
+  document.body.appendChild(el);
+  haptic('levelup');
+  playSound('perfect');
+  if(S.confettiOn!==false) { confetti(40); setTimeout(()=>confetti(30),600); setTimeout(()=>confetti(20),1200); }
+  setTimeout(()=>{ if(el.parentNode) el.remove(); }, 6000);
+}
+
+// ── 2. HABIT DIFFICULTY ─────────────────────────────────────
+const DIFFICULTY_CONFIG = {
+  easy:   { label:'EASY',   color:'#00F5D4', xp:5,  icon:'◎' },
+  medium: { label:'MEDIUM', color:'#FFE600', xp:10, icon:'◉' },
+  hard:   { label:'HARD',   color:'#FF3CAC', xp:20, icon:'⬤' },
+  epic:   { label:'EPIC',   color:'#7B2FBE', xp:35, icon:'★' },
+};
+
+function getDifficultyXP(h) {
+  return DIFFICULTY_CONFIG[h.difficulty||'medium']?.xp || 10;
+}
+
+// ── 3. MODAL ANIMATIONS ─────────────────────────────────────
+// [openModalAnimated removed]
+
+// [closeModalAnimated removed]
+
+// ── 4. STATS COUNTER ANIMATION ──────────────────────────────
+function animateCounter(el, from, to, suffix='', duration=600) {
+  if (!el) return;
+  const start = Date.now();
+  const range = to - from;
+  function tick() {
+    const elapsed = Date.now() - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+    const current = Math.round(from + range * ease);
+    el.textContent = current + suffix;
+    if (progress < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// [renderStatsWithAnimation disabled - caused missing element errors]
+function renderStatsWithAnimation() { renderStats(); }
+
+function checkProactiveCoach() {
+  // Trigger if any habit missed 2+ days in a row
+  const today = new Date();
+  const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
+  const y2 = new Date(today); y2.setDate(today.getDate()-2);
+  const yd = yesterday.toISOString().split('T')[0];
+  const y2d = y2.toISOString().split('T')[0];
+  
+  const atRiskHabits = S.habits.filter(h => {
+    if (h.archived || h.paused || (h.streak||0) < 3) return false;
+    const ydSnap = S.lockedDays?.[yd];
+    const y2Snap = S.lockedDays?.[y2d];
+    const missedYd = ydSnap ? !ydSnap.find(s=>s.habitId===h.id&&s.completed) : true;
+    const missedY2 = y2Snap ? !y2Snap.find(s=>s.habitId===h.id&&s.completed) : true;
+    return missedYd && missedY2 && isDueDateStr(h,yd);
+  });
+  
+  if (atRiskHabits.length > 0 && !S._lastProactiveCoach !== todayStr()) {
+    S._lastProactiveCoach = todayStr();
+    const names = atRiskHabits.slice(0,2).map(h=>h.name).join(' & ');
+    setTimeout(() => {
+      notify(`Coach: "${names}" streak at risk! Tap to get back on track.`, '🦁', 5000);
+    }, 3000);
+  }
+}
+
+// ── 7. WEEKLY SCHEDULE VIEW ──────────────────────────────────
+function renderWeeklySchedule() {
+  const el = $('weekly-schedule-grid');
+  if (!el) return;
+  const active = S.habits.filter(h=>!h.archived);
+  if (!active.length) { el.innerHTML = getEmptyState('habits'); return; }
+  
+  const days = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
+  const today = new Date().getDay(); // 0=Sun
+  const todayIdx = today === 0 ? 6 : today - 1;
+  
+  // For each day, get habits due
+  const dayHabits = days.map((d, i) => {
+    const jsDay = i === 6 ? 0 : i + 1; // convert to JS day (0=Sun)
+    return active.filter(h => {
+      const f = h.freq || 'daily';
+      if (f==='daily') return true;
+      if (f==='weekdays') return jsDay >= 1 && jsDay <= 5;
+      if (f==='weekends') return jsDay === 0 || jsDay === 6;
+      if (f==='3x/week') return [1,3,5].includes(jsDay);
+      if (f==='weekly') return jsDay === 1;
+      return false;
+    });
+  });
+  
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:9px;">
+      ${days.map((d,i) => `
+        <div style="text-align:center;font-family:var(--font-mono, monospace);font-size:7px;font-weight:700;padding:4px 2px;background:${i===todayIdx?'var(--yellow)':'var(--surface)'};color:${i===todayIdx?'var(--black)':'var(--sub)'};border:var(--bo);">
+          ${d}<br><span style="font-size:8px;font-weight:400;">${dayHabits[i].length}</span>
+        </div>
+      `).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">
+      ${days.map((d,i) => `
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          ${dayHabits[i].slice(0,6).map(h => {
+            const ic = HABIT_ICONS.find(x=>x.id===h.icon)||HABIT_ICONS[0];
+            const svg = `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="${h.color}" stroke-width="2" stroke-linecap="round">${ic.svg}</svg>`;
+            return `<div style="padding:2px 3px;background:${h.color}22;border-left:2px solid ${h.color};display:flex;align-items:center;gap:2px;overflow:hidden;" title="${h.name}">${svg}<span style="font-size:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${h.name}</span></div>`;
+          }).join('')}
+          ${dayHabits[i].length > 6 ? `<div style="font-size:7px;color:var(--sub);text-align:center;">+${dayHabits[i].length-6}</div>` : ''}
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+// ── 8. HABIT CORRELATION ─────────────────────────────────────
+function getHabitCorrelations() {
+  // Find habits that are often completed together
+  const active = S.habits.filter(h=>!h.archived);
+  if (active.length < 2) return [];
+  
+  const correlations = [];
+  const history = S.history || [];
+  
+  for (let i = 0; i < active.length; i++) {
+    for (let j = i+1; j < active.length; j++) {
+      const h1 = active[i], h2 = active[j];
+      // Find days where both were completed
+      const h1Dates = new Set(history.filter(e=>e.habitId===h1.id&&e.status==='done').map(e=>e.date));
+      const h2Dates = new Set(history.filter(e=>e.habitId===h2.id&&e.status==='done').map(e=>e.date));
+      const both = [...h1Dates].filter(d=>h2Dates.has(d)).length;
+      const either = new Set([...h1Dates,...h2Dates]).size;
+      if (either < 5) continue;
+      const correlation = Math.round(both/either*100);
+      if (correlation >= 60) {
+        correlations.push({ h1: h1.name, h2: h2.name, pct: correlation, both });
+      }
+    }
+  }
+  return correlations.sort((a,b)=>b.pct-a.pct).slice(0,5);
+}
+
+function renderHabitCorrelations() {
+  const el = $('habit-correlations');
+  if (!el) return;
+  const corrs = getHabitCorrelations();
+  if (!corrs.length) {
+    el.innerHTML = '<div style="font-size:10px;color:var(--sub);">Complete more habits over time to see correlations.</div>';
+    return;
+  }
+  el.innerHTML = corrs.map(c => `
+    <div style="display:flex;align-items:center;gap:9px;padding:8px 11px;background:var(--surface);border:var(--bo-t);margin-bottom:5px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:10px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.h1} <span style="color:var(--cyan)">↔</span> ${c.h2}</div>
+        <div style="font-size:8px;color:var(--sub);margin-top:2px;">Done together ${c.both} times</div>
+      </div>
+      <div style="font-family:sans-serif;font-weight:900;font-size:18px;color:${c.pct>=80?'var(--lime)':c.pct>=60?'var(--cyan)':'var(--yellow)'};">${c.pct}%</div>
+    </div>
+  `).join('');
+}
+
+// ── REST DAY (data check, used by due-date logic) ─────────────
+function isRestDay(dateStr) {
+  return !!(S.restDays && S.restDays[dateStr||todayStr()]);
+}
+
+// ── 11. COLLAPSIBLE SETTINGS ─────────────────────────────────
+function toggleSettingsBlock(el) {
+  const block = el.closest('.settings-block');
+  if (!block) return;
+  const body = block.querySelector('.settings-block-body');
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  const chevron = el.querySelector('.sb-chevron');
+  if (chevron) chevron.style.transform = isOpen ? 'rotate(-90deg)' : 'rotate(0deg)';
+}
+
+// Patch init to check perfect day and proactive coach
+// [init proactive merged]
+
+// Patch renderStats to use animated version
+// [renderStats → renderStatsWithAnimation]
+
+// Check perfect day after every toggle
+// [_baseToggleHabit perfect day merged]
+
+// Reset perfect day flag on new day
+
+
+const DIFF_DESCS = {
+  easy:   'Simple habit. 5 XP per completion. Great for building consistency.',
+  medium: 'Balanced challenge. 10 XP per completion.',
+  hard:   'Serious effort required. 20 XP. Builds real discipline.',
+  epic:   'Maximum challenge. 35 XP. Only for true warriors.',
+};
+function selDifficulty(el, val) {
+  document.querySelectorAll('#modal-add .freq-btn[onclick*="selDifficulty"]').forEach(b=>b.classList.remove('sel'));
+  el.classList.add('sel');
+  $('inp-difficulty').value = val;
+  const d=$('diff-desc'); if(d) d.textContent=DIFF_DESCS[val]||'';
+}
+
+
+// [renderStats → see _renderStatsBase below]
+
+
+// ── SERVICE WORKER ──────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('[OHT] SW registered, scope:', reg.scope))
+      .catch(err => console.warn('[OHT] SW registration failed:', err));
+  });
+
+  // SW baru aktif setelah deploy → auto reload tab supaya user langsung dapat versi terbaru
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data && e.data.type === 'SW_UPDATED') {
+      console.log('[OHT] New SW activated, reloading...');
+      window.location.reload();
+    }
+  });
+}
+
+
+// [closeCustomSelect defined above]
+
+
+
+// ════════════════════════════════════════════════════════════
+// NUTRITION MODULE
+// ════════════════════════════════════════════════════════════
+
+// ── DEFAULT TARGETS (WHO) ──
+const NUTR_DEFAULTS = { kcal:2000, protein:50, carbs:300, fat:65, fiber:25, sugar:50, sodium:2300 };
+const NUTR_UNITS    = { kcal:'kkal', protein:'g', carbs:'g', fat:'g', fiber:'g', sugar:'g', sodium:'mg' };
+const NUTR_LABELS   = { kcal:'Kalori', protein:'Protein', carbs:'Karbo', fat:'Lemak', fiber:'Serat', sugar:'Gula', sodium:'Sodium' };
+const NUTR_COLORS   = { kcal:'#FF6B00', protein:'#00F5D4', carbs:'#FFE600', fat:'#FF3CAC', fiber:'#AAFF00', sugar:'#7B2FBE', sodium:'#0057FF' };
+const NUTR_ICONS    = ['🍽️','🥗','🍖','🥤','🥕','🍜','🍳','🥩','🍱','🥙','🥪','🍝'];
+
+let _nutrImg = null;        // base64 dari foto yang dipilih
+let _nutrResult = null;     // hasil analisa terakhir
+let _nutrPortion = 1.0;     // multiplier porsi
+
+// ── STORAGE HELPERS ──
+function getNutrTargets() {
+  try {
+    const saved = localStorage.getItem('oht_nutr_targets');
+    return saved ? {...NUTR_DEFAULTS, ...JSON.parse(saved)} : {...NUTR_DEFAULTS};
+  } catch(e) { return {...NUTR_DEFAULTS}; }
+}
+
+function getNutrLog() {
+  // { 'YYYY-MM-DD': [ { name, emoji, kcal, protein, carbs, fat, fiber, sugar, sodium, portion, time } ] }
+  try {
+    const raw = localStorage.getItem('oht_nutr_log');
+    return raw ? JSON.parse(raw) : {};
+  } catch(e) { return {}; }
+}
+
+function saveNutrLog(log) {
+  try { localStorage.setItem('oht_nutr_log', JSON.stringify(log)); } catch(e) {}
+}
+
+function getTodayNutrLog() {
+  const log = getNutrLog();
+  return log[todayStr()] || [];
+}
+
+function getTodayTotals() {
+  const meals = getTodayNutrLog();
+  const t = { kcal:0, protein:0, carbs:0, fat:0, fiber:0, sugar:0, sodium:0 };
+  meals.forEach(m => { Object.keys(t).forEach(k => { t[k] += (m[k]||0); }); });
+  return t;
+}
+
+// ── SETTINGS SAVE/LOAD ──
+function saveNutrSettings() {
+  const targets = {
+    kcal:    +($('nset-kcal')?.value   || 2000),
+    protein: +($('nset-protein')?.value || 50),
+    carbs:   +($('nset-carbs')?.value   || 300),
+    fat:     +($('nset-fat')?.value     || 65),
+    fiber:   +($('nset-fiber')?.value   || 25),
+    sugar:   +($('nset-sugar')?.value   || 50),
+    sodium:  +($('nset-sodium')?.value  || 2300),
+  };
+  try { localStorage.setItem('oht_nutr_targets', JSON.stringify(targets)); } catch(e) {}
+  renderNutrHeader();
+  toast('Target nutrisi disimpan!', 'success');
+}
+
+function loadNutrSettingsUI() {
+  const t = getNutrTargets();
+  ['kcal','protein','carbs','fat','fiber','sugar','sodium'].forEach(k => {
+    const el = $('nset-'+k); if(el) el.value = t[k];
+  });
+}
+
+// ── RENDER HEADER (rings + macro bars) ──
+function renderNutrHeader() {
+  const targets = getNutrTargets();
+  const totals  = getTodayTotals();
+  const keys    = ['kcal','protein','carbs','fat'];
+  const miniKeys= ['fiber','sugar','sodium'];
+
+  // Date label
+  const dl = $('nutr-date-lbl');
+  if(dl) { const d=new Date(); dl.textContent = d.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long'}); }
+
+  // Rings (4 utama)
+  const ringsEl = $('nutr-rings');
+  if(ringsEl) {
+    const R=28, C=2*Math.PI*R;
+    ringsEl.innerHTML = keys.map(k => {
+      const pct = Math.min(1, totals[k] / (targets[k]||1));
+      const over = totals[k] > targets[k];
+      const color = over ? 'var(--red)' : NUTR_COLORS[k];
+      const dash = C - pct * C;
+      // rotate hanya circle arc via transform, bukan seluruh SVG
+      // sehingga text tetap tegak lurus
+      return `<div class="nutr-ring-wrap">
+        <svg width="70" height="70" viewBox="0 0 70 70">
+          <circle cx="35" cy="35" r="${R}" fill="none" stroke="#222" stroke-width="6"/>
+          <circle cx="35" cy="35" r="${R}" fill="none" stroke="${color}" stroke-width="6"
+            stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${dash.toFixed(1)}"
+            stroke-linecap="square"
+            transform="rotate(-90 35 35)"
+            style="transition:stroke-dashoffset .5s;"/>
+          <text x="35" y="31" text-anchor="middle" font-family="'Archivo Black',sans-serif" font-size="10" fill="${over?'var(--red)':'var(--text)'}">${Math.round(totals[k])}</text>
+          <text x="35" y="42" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="6.5" fill="var(--sub)">/${targets[k]}</text>
+          <text x="35" y="52" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="5.5" fill="var(--sub)">${NUTR_UNITS[k]}</text>
+        </svg>
+        <div class="nutr-ring-lbl">${NUTR_LABELS[k]}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Macro mini bars (3 bawah)
+  const macroEl = $('nutr-macros-row');
+  if(macroEl) {
+    macroEl.innerHTML = miniKeys.map(k => {
+      const pct = Math.min(100, Math.round(totals[k] / (targets[k]||1) * 100));
+      const over = totals[k] > targets[k];
+      return `<div class="nutr-macro-cell">
+        <div class="nutr-macro-name">${NUTR_LABELS[k]}</div>
+        <div class="nutr-macro-vals${over?' nutr-macro-over':''}">${Math.round(totals[k])}<span>/${targets[k]}${NUTR_UNITS[k]}</span></div>
+        <div class="nutr-macro-bar"><div class="nutr-macro-fill" style="width:${pct}%;background:${over?'var(--red)':NUTR_COLORS[k]};"></div></div>
+      </div>`;
+    }).join('');
+  }
+
+  // Kcal badge di log header
+  const badge = $('nutr-kcal-badge');
+  if(badge) badge.textContent = `${Math.round(totals.kcal)} / ${targets.kcal} kkal`;
+
+  // Render meal log
+  renderNutrMealLog();
+}
+
+// ── RENDER MEAL LOG ──
+function renderNutrMealLog() {
+  const el = $('nutr-meal-log'); if(!el) return;
+  const meals = getTodayNutrLog();
+  if(!meals.length) {
+    el.innerHTML = `<div style="font-family:var(--font-mono, monospace);font-size:9px;color:var(--sub);text-align:center;padding:18px;">Belum ada makanan yang diconsume hari ini.</div>`;
+    return;
+  }
+  el.innerHTML = meals.map((m,i) => `
+    <div class="nutr-meal-item">
+      <div class="nutr-meal-icon">${m.emoji||'🍽️'}</div>
+      <div class="nutr-meal-info">
+        <div class="nutr-meal-name">${m.name}${m.portion&&m.portion!==1?' <span style="font-size:8px;opacity:.6;">×'+m.portion+'</span>':''}</div>
+        <div class="nutr-meal-meta">P:${m.protein}g · K:${m.carbs}g · L:${m.fat}g · ${m.time||''}</div>
+      </div>
+      <div class="nutr-meal-kcal">${m.kcal}<span style="font-family:var(--font-mono, monospace);font-size:7px;font-weight:400;"> kkal</span></div>
+      <div class="nutr-meal-del" onclick="deleteNutrMeal(${i})" title="Hapus">×</div>
+    </div>`).join('');
+}
+
+// ── DELETE MEAL ──
+function deleteNutrMeal(idx) {
+  const log = getNutrLog();
+  const today = todayStr();
+  if(!log[today]) return;
+  log[today].splice(idx, 1);
+  saveNutrLog(log);
+  renderNutrHeader();
+}
+
+// ── IMAGE SELECTION ──
+function onNutrImgSelected(input) {
+  const file = input.files?.[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    _nutrImg = e.target.result; // full data URL
+    const preview = $('nutr-preview-img');
+    const inner = $('nutr-upload-inner');
+    const zone = $('nutr-upload-zone');
+    if(preview) { preview.src = _nutrImg; preview.style.display = 'block'; }
+    if(inner) inner.style.display = 'none';
+    if(zone) zone.classList.add('has-img');
+    const btn = $('nutr-scan-btn'); if(btn) btn.style.display = 'block';
+    // Sembunyikan result sebelumnya
+    const rw = $('nutr-result-wrap'); if(rw) rw.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── DO SCAN (Claude Vision) ──
+async function doNutrScan() {
+  if(!_nutrImg) return;
+  const btn = $('nutr-scan-btn');
+  const card = $('nutr-scan-card');
+  if(btn) btn.style.display = 'none';
+
+  // Loading state
+  const loadingEl = document.createElement('div');
+  loadingEl.className = 'nutr-scan-loading';
+  loadingEl.id = 'nutr-loading';
+  loadingEl.innerHTML = `
+    <div style="font-family:var(--font-mono, monospace);font-size:9px;color:var(--yellow);letter-spacing:1px;">MENGANALISA MAKANAN...</div>
+    <div class="nutr-scan-loading-bar"><div class="nutr-scan-loading-fill"></div></div>
+    <div style="font-family:var(--font-mono, monospace);font-size:7px;color:var(--sub);">Claude Vision sedang memproses foto</div>`;
+  card.appendChild(loadingEl);
+
+  const targets = getNutrTargets();
+  const totals  = getTodayTotals();
+
+  // Hitung sisa kuota hari ini untuk warning prompt
+  const remaining = {};
+  Object.keys(targets).forEach(k => { remaining[k] = Math.max(0, targets[k] - (totals[k]||0)); });
+
+  const base64Data = _nutrImg.split(',')[1];
+  const mediaType  = _nutrImg.match(/data:(image\/\w+);/)?.[1] || 'image/jpeg';
+
+  const systemPrompt = `Kamu adalah ahli gizi. Analisa foto makanan dan hasilkan data nutrisi estimasi yang akurat.
+Respond HANYA dengan JSON valid, tanpa markdown, tanpa penjelasan, langsung JSON saja.
+Format:
+{
+  "name": "nama makanan (Indonesia)",
+  "emoji": "1 emoji relevan",
+  "description": "deskripsi singkat 1 baris",
+  "serving": "estimasi porsi (mis: 1 mangkok, 1 piring)",
+  "kcal": angka,
+  "protein": angka_gram,
+  "carbs": angka_gram,
+  "fat": angka_gram,
+  "fiber": angka_gram,
+  "sugar": angka_gram,
+  "sodium": angka_mg,
+  "confidence": "high/medium/low"
+}
+Semua angka adalah bilangan bulat tanpa satuan. Estimasi untuk 1 porsi standar yang terlihat di foto.`;
+
+  const userPrompt = `Analisa makanan dalam foto ini. Target harian user: kalori ${targets.kcal}kkal, protein ${targets.protein}g, karbo ${targets.carbs}g, lemak ${targets.fat}g.
+Sudah dikonsumsi hari ini: kalori ${Math.round(totals.kcal)}kkal, protein ${Math.round(totals.protein)}g, karbo ${Math.round(totals.carbs)}g, lemak ${Math.round(totals.fat)}g.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } },
+            { type: 'text', text: userPrompt }
+          ]
+        }]
+      })
+    });
+
+    const data = await res.json();
+    const raw = data.content?.map(b => b.text||'').join('').trim();
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const result = JSON.parse(clean);
+
+    // Hapus loading
+    const ld = $('nutr-loading'); if(ld) ld.remove();
+
+    _nutrResult = result;
+    _nutrPortion = 1.0;
+    renderNutrResult(result, totals, targets);
+
+  } catch(err) {
+    const ld = $('nutr-loading'); if(ld) ld.remove();
+    if(btn) btn.style.display = 'block';
+    toast('Gagal analisa: '+err.message, 'error');
+  }
+}
+
+// ── RENDER RESULT CARD ──
+function renderNutrResult(result, totals, targets) {
+  const keys = ['kcal','protein','carbs','fat','fiber','sugar','sodium'];
+
+  // Hitung dengan porsi
+  const p = _nutrPortion;
+  const scaled = {};
+  keys.forEach(k => { scaled[k] = Math.round((result[k]||0) * p); });
+
+  // Cek apa yang akan melebihi limit setelah consume
+  const overKeys = keys.filter(k => (totals[k]||0) + scaled[k] > (targets[k]||Infinity));
+
+  let warningHtml = '';
+  if(overKeys.length) {
+    const labels = overKeys.map(k => {
+      const after = Math.round((totals[k]||0) + scaled[k]);
+      const lim = targets[k];
+      return `${NUTR_LABELS[k]} (${after}/${lim}${NUTR_UNITS[k]})`;
+    }).join(', ');
+    warningHtml = `<div class="nutr-over-warning">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" style="flex-shrink:0;margin-top:1px;"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span>Akan melewati batas: <strong>${labels}</strong></span>
+    </div>`;
+  }
+
+  const confBadge = result.confidence === 'high' ? '🟢 High' : result.confidence === 'medium' ? '🟡 Medium' : '🔴 Low';
+
+  const cellsHtml = keys.map(k => {
+    const isOver = overKeys.includes(k);
+    const alreadyConsumed = Math.round(totals[k]||0);
+    const afterConsume = alreadyConsumed + scaled[k];
+    const lim = targets[k];
+    return `<div class="nutr-result-cell${isOver?' over-limit':''}">
+      <div class="nutr-result-cell-name">${NUTR_LABELS[k]}</div>
+      <div class="nutr-result-cell-val">${scaled[k]}<span style="font-family:var(--font-mono, monospace);font-size:7px;font-weight:400;"> ${NUTR_UNITS[k]}</span></div>
+      <div style="font-family:var(--font-mono, monospace);font-size:6.5px;color:${isOver?'var(--red)':'var(--sub)'};margin-top:2px;">sdh: ${alreadyConsumed} → ${afterConsume}/${lim}</div>
+    </div>`;
+  }).join('');
+
+  const rc = $('nutr-result-card');
+  if(!rc) return;
+  rc.innerHTML = `
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">
+      <div>
+        <div class="nutr-result-name">${result.emoji||'🍽️'} ${result.name||'Makanan'}</div>
+        <div class="nutr-result-desc">${result.description||''} · ${result.serving||'1 porsi'}</div>
+      </div>
+      <div style="font-family:var(--font-mono, monospace);font-size:7px;color:var(--sub);text-align:right;">${confBadge}<br>estimasi</div>
+    </div>
+    <div class="nutr-result-kcal">${scaled.kcal}</div>
+    <div class="nutr-result-kcal-lbl">kkal per ${result.serving||'porsi'}</div>
+    <div class="nutr-portion-row">
+      <span class="nutr-portion-lbl">PORSI</span>
+      <div class="nutr-portion-btn" onclick="adjustPortion(-0.5)">−</div>
+      <div class="nutr-portion-val" id="nutr-portion-disp">×${_nutrPortion}</div>
+      <div class="nutr-portion-btn" onclick="adjustPortion(0.5)">+</div>
+      <span style="font-family:var(--font-mono, monospace);font-size:7px;color:var(--sub);">(0.5 = setengah porsi)</span>
+    </div>
+    ${warningHtml}
+    <div class="nutr-result-grid">${cellsHtml}</div>`;
+
+  const rw = $('nutr-result-wrap'); if(rw) rw.style.display = 'block';
+}
+
+// ── ADJUST PORTION ──
+function adjustPortion(delta) {
+  _nutrPortion = Math.max(0.5, Math.min(5, _nutrPortion + delta));
+  _nutrPortion = Math.round(_nutrPortion * 2) / 2; // snap ke 0.5
+  const disp = $('nutr-portion-disp'); if(disp) disp.textContent = '×'+_nutrPortion;
+  if(_nutrResult) renderNutrResult(_nutrResult, getTodayTotals(), getNutrTargets());
+}
+
+// ── CONSUME ──
+function consumeMeal() {
+  if(!_nutrResult) return;
+  const p = _nutrPortion;
+  const keys = ['kcal','protein','carbs','fat','fiber','sugar','sodium'];
+  const meal = { name: _nutrResult.name, emoji: _nutrResult.emoji||'🍽️', portion: p };
+  keys.forEach(k => { meal[k] = Math.round((_nutrResult[k]||0)*p); });
+  const now = new Date();
+  meal.time = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+
+  const log = getNutrLog();
+  const today = todayStr();
+  if(!log[today]) log[today] = [];
+  log[today].push(meal);
+  saveNutrLog(log);
+
+  clearNutrScan();
+  toast(`✅ ${meal.emoji} ${meal.name} dicatat! +${meal.kcal}kkal`, 'success');
+  setTimeout(() => navigateMore('report'), 800);
+}
+
+// ── CLEAR SCAN ──
+function clearNutrScan() {
+  _nutrImg = null;
+  _nutrResult = null;
+  _nutrPortion = 1.0;
+  const preview = $('nutr-preview-img');
+  const inner = $('nutr-upload-inner');
+  const zone = $('nutr-upload-zone');
+  const btn = $('nutr-scan-btn');
+  const rw = $('nutr-result-wrap');
+  const inp = $('nutr-img-input');
+  if(preview) { preview.style.display='none'; preview.src=''; }
+  if(inner) inner.style.display = 'flex';
+  if(zone) zone.classList.remove('has-img');
+  if(btn) btn.style.display = 'none';
+  if(rw) rw.style.display = 'none';
+  if(inp) inp.value = '';
+}
+
+// ── RESET DAY (manual) ──
+function resetNutritionDay() {
+  if(!confirm('Reset log nutrisi hari ini?')) return;
+  const log = getNutrLog();
+  delete log[todayStr()];
+  saveNutrLog(log);
+  renderNutrHeader();
+  toast('Log nutrisi hari ini di-reset.', 'info');
+}
+
+// ── PAGE INIT (dipanggil saat navigate ke nutrition) ──
+function initNutritionPage() {
+  loadNutrSettingsUI();
+  renderNutrHeader();
+  clearNutrScan();
+}
+
+// ── NAVBAR TOGGLE ──────────────────────────────────────────
+let _navVisible = true;
+function toggleNavBar() {
+  _navVisible = !_navVisible;
+  document.body.classList.toggle('nav-hidden', !_navVisible);
+  // Update icon: down arrow = nav visible (klik = hide), up arrow = nav hidden (klik = show)
+  const icon = $('nav-toggle-icon');
+  if(icon) {
+    icon.innerHTML = _navVisible
+      ? '<polyline points="6 9 12 15 18 9"/>'   // arrow down = "klik untuk hide"
+      : '<polyline points="18 15 12 9 6 15"/>'; // arrow up   = "klik untuk show"
+  }
+  // Warna tombol sedikit berubah saat nav hidden (accent lebih soft)
+  const btn = $('nav-toggle-btn');
+  if(btn) btn.style.opacity = _navVisible ? '1' : '0.85';
+}
+
+// ════════════════════════════════════════════════════════════
+// JOURNAL MODULE — full page, click-to-edit, date filter
+// ════════════════════════════════════════════════════════════
+let _journalEditMode = false; // null = today
+
+function initJournalPage() {
+  _journalViewDate = null;
+  const inp = $('journal-date-filter');
+  if(inp) inp.value = '';
+  loadJournalDate(null);
+}
+
+function loadJournalDate(dateStr) {
+  _journalViewDate = dateStr || null;
+  const lblJ = $('journal-date-filter-label');
+  if(lblJ) lblJ.textContent = dateStr ? odpFormatLabel(dateStr) : odpTodayLabel();
+  const targetDate = _journalViewDate || todayStr();
+  const lbl = $('journal-viewing-date');
+  if(lbl) {
+    const d = new Date(targetDate + 'T12:00:00');
+    lbl.textContent = d.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  }
+  // Load text for that date
+  const entries = getJournalLog();
+  const text = entries[targetDate] || '';
+  const textEl = $('journal-main-text');
+  if(textEl) {
+    textEl.innerHTML = text
+      ? text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')
+      : '<span style="color:var(--sub);font-style:italic;font-size:11px;">Tap untuk menulis jurnal hari ini...</span>';
+  }
+  cancelJournalEdit();
+  // Refresh mood/energy check-in for the viewed date
+  if(typeof restoreMoodUI==='function') restoreMoodUI();
+  // Previous-entries preview removed per user request — keep container empty
+  const prevEl = $('journal-prev-entries'); if(prevEl) prevEl.innerHTML = '';
+  renderMoodHistoryStrip();
+}
+
+function renderMoodHistoryStrip() {
+  const el = $('mood-history-strip'); if(!el) return;
+  const today = new Date();
+  const days = Array.from({length:7},(_,i)=>{
+    const d = new Date(today); d.setDate(d.getDate()-(6-i));
+    return d.toISOString().split('T')[0];
+  });
+  const dayNames=['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+  const cells = days.map(ds=>{
+    const m = S.moodLog && S.moodLog[ds];
+    const dt = new Date(ds+'T12:00:00');
+    const isToday = ds === todayStr();
+    return `<div style="flex:1;text-align:center;">
+      <div style="font-size:16px;margin-bottom:2px;opacity:${m&&m.mood?1:.25};">${m&&m.mood?MOOD_EMOJIS[m.mood]:'·'}</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:7px;color:${isToday?'var(--yellow)':'var(--sub)'};">${dayNames[dt.getDay()]}</div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div style="background:var(--surface);border:var(--bo-t);box-shadow:var(--sha-sm);padding:9px 7px;display:flex;gap:2px;">${cells}</div>`;
+}
+
+function getJournalLog() {
+  try { return JSON.parse(localStorage.getItem('oht_journal_log')||'{}'); } catch(e){return{};}
+}
+function saveJournalLog(log) {
+  try { localStorage.setItem('oht_journal_log', JSON.stringify(log)); } catch(e){}
+}
+
+function startJournalEdit() {
+  if(_journalEditMode) return;
+  _journalEditMode = true;
+  const targetDate = _journalViewDate || todayStr();
+  // Only allow editing today
+  if(targetDate !== todayStr()) {
+    toast('Hanya jurnal hari ini yang bisa diedit.', 'info');
+    return;
+  }
+  const entries = getJournalLog();
+  const text = entries[targetDate] || '';
+  const textEl = $('journal-main-text');
+  const taEl = $('journal-main-textarea');
+  const actEl = $('journal-main-actions');
+  if(textEl) textEl.style.display = 'none';
+  if(taEl) { taEl.style.display = 'block'; taEl.value = text; taEl.focus(); }
+  if(actEl) actEl.style.display = 'flex';
+}
+
+function saveJournalMain() {
+  const taEl = $('journal-main-textarea');
+  if(!taEl) return;
+  const text = taEl.value.trim();
+  const log = getJournalLog();
+  log[todayStr()] = text;
+  saveJournalLog(log);
+  _journalEditMode = false;
+  loadJournalDate(_journalViewDate);
+  toast('Jurnal disimpan ✓', 'success');
+}
+
+function cancelJournalEdit() {
+  _journalEditMode = false;
+  const textEl = $('journal-main-text');
+  const taEl = $('journal-main-textarea');
+  const actEl = $('journal-main-actions');
+  if(textEl) textEl.style.display = 'block';
+  if(taEl) taEl.style.display = 'none';
+  if(actEl) actEl.style.display = 'none';
+}
+
+function renderJournalPrev(currentDate) {
+  const el = $('journal-prev-entries'); if(!el) return;
+  const log = getJournalLog();
+  const dates = Object.keys(log).filter(d => d !== currentDate && log[d]).sort((a,b)=>b.localeCompare(a));
+  if(!dates.length) { el.innerHTML=''; return; }
+  el.innerHTML = '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:8px;color:var(--sub);margin:14px 0 7px;text-transform:uppercase;letter-spacing:1px;">Entri Sebelumnya</div>'
+    + dates.slice(0,20).map(d => {
+      const dt = new Date(d+'T12:00:00');
+      const label = dt.toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+      const preview = (log[d]||'').slice(0,120).replace(/\n/g,' ');
+      return `<div class="journal-prev-card" onclick="loadJournalDate('${d}');$('journal-date-filter').value='${d}'">
+        <div class="journal-prev-date">${label}</div>
+        <div class="journal-prev-text">${preview}${(log[d]||'').length>120?'…':''}</div>
+      </div>`;
+    }).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// REPORT DATE FILTER + NUTRITION/OTHER in Report
+// ════════════════════════════════════════════════════════════
+
+function initReportPage() {
+  _reportViewMonth = null;
+  if(typeof renderReport==='function') renderReport();
+}
+
+function renderReportWaterChart(dates) {
+  const ch=$('report-water-chart'), chl=$('report-water-chart-labels'), avgEl=$('report-water-avg');
+  if(!ch) return;
+  S.waterLog = S.waterLog || {};
+  const TARGET=8;
+  const vals = dates.map(ds=>S.waterLog[ds]||0);
+  const loggedDays = vals.filter(v=>v>0).length;
+  const avg = loggedDays ? (vals.reduce((s,v)=>s+v,0)/loggedDays) : 0;
+  if(avgEl) avgEl.textContent = loggedDays ? `RATA-RATA ${avg.toFixed(1)}/${TARGET} GELAS` : 'BELUM ADA DATA';
+  ch.innerHTML = dates.map(ds=>{
+    const v=S.waterLog[ds]||0;
+    const ht=Math.max(v?3:2,Math.min(70,Math.round(v/TARGET*70)));
+    return `<div class="bar-col"><div class="bar-fill" style="height:${ht}px;max-height:70px;background:var(--cyan);"></div></div>`;
+  }).join('');
+  if(chl) chl.innerHTML = dates.map(ds=>{const d=new Date(ds+'T12:00:00');return `<div class="chart-day-lbl">${d.getDate()}</div>`;}).join('');
+}
+
+function renderReportSleepChart(dates) {
+  const ch=$('report-sleep-chart'), chl=$('report-sleep-chart-labels'), avgEl=$('report-sleep-avg');
+  if(!ch) return;
+  S.sleepLog = S.sleepLog || [];
+  const TARGET=8;
+  const hoursByDate = {};
+  S.sleepLog.forEach(e=>{ if(e.date) hoursByDate[e.date]=(hoursByDate[e.date]||0)+(e.hours||0); });
+  const vals = dates.map(ds=>hoursByDate[ds]||0);
+  const loggedDays = vals.filter(v=>v>0).length;
+  const avg = loggedDays ? (vals.reduce((s,v)=>s+v,0)/loggedDays) : 0;
+  if(avgEl) avgEl.textContent = loggedDays ? `RATA-RATA ${avg.toFixed(1)}/${TARGET} JAM` : 'BELUM ADA DATA';
+  ch.innerHTML = dates.map(ds=>{
+    const v=hoursByDate[ds]||0;
+    const ht=Math.max(v?3:2,Math.min(70,Math.round(v/TARGET*70)));
+    return `<div class="bar-col"><div class="bar-fill" style="height:${ht}px;max-height:70px;background:var(--cyan);"></div></div>`;
+  }).join('');
+  if(chl) chl.innerHTML = dates.map(ds=>{const d=new Date(ds+'T12:00:00');return `<div class="chart-day-lbl">${d.getDate()}</div>`;}).join('');
+}
+
+function saveReportOther(val) {
+  const d = todayStr();
+  try {
+    const log = JSON.parse(localStorage.getItem('oht_report_other')||'{}');
+    log[d] = val;
+    localStorage.setItem('oht_report_other', JSON.stringify(log));
+  } catch(e){}
+}
+
+function loadReportOther() {
+  const d = todayStr();
+  const ta = $('report-other-input'); if(!ta) return;
+  try {
+    const log = JSON.parse(localStorage.getItem('oht_report_other')||'{}');
+    ta.value = log[d] || '';
+  } catch(e){}
+}
+
+// ════════════════════════════════════════════════════════════
+// WELLNESS PAGE — Water + Sleep dengan date filter
+// ════════════════════════════════════════════════════════════
+
+function initWellnessPage() {
+  _wellnessDate = null;
+  const inp = $('wellness-date-filter');
+  if(inp) inp.value = '';
+  // Kunci mode GELAS/ML sesuai yang dipilih user di modal TARGET
+  const cfg = getWellnessConfig();
+  setWellnessWaterMode(cfg.waterMode);
+  loadWellnessDate(null);
+}
+
+function loadWellnessDate(dateStr) {
+  _wellnessDate = dateStr || null;
+  const lbl2 = $('wellness-date-filter-label');
+  if(lbl2) lbl2.textContent = dateStr ? odpFormatLabel(dateStr) : odpTodayLabel();
+  const d = _wellnessDate || todayStr();
+  const isToday = d === todayStr();
+
+  const lbl = $('wellness-viewing-date');
+  if(lbl) {
+    const dt = new Date(d + 'T12:00:00');
+    lbl.textContent = dt.toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  }
+
+  // Water: pakai S.waterLog (per-date object)
+  S.waterLog = S.waterLog || {};
+  const wCount = S.waterLog[d] || 0;
+
+  const countEl = $('water-count'); if(countEl) countEl.textContent = wCount;
+  const msgs = ['Mulai minum! 💧','Bagus! 💧','Seperempat! 💧','Setengah! 🌊','Hampir! 🌊','Sebentar lagi! 🌊','Hampir penuh! 💦','Satu lagi! 💦','🏆 Terhidrasi!'];
+  const msgEl = $('water-msg'); if(msgEl) msgEl.textContent = msgs[Math.min(wCount, 8)];
+
+  // Render cups — clickable hanya hari ini
+  const cups = $('water-cups');
+  if(cups) {
+    cups.innerHTML = Array.from({length: 8}, (_, i) => {
+      const filled = i < wCount;
+      const clickable = isToday;
+      return `<div class="water-cup ${filled?'full':''}" ${clickable ? `onclick="wellnessCupTap(${i},'${d}')"` : 'style="cursor:default;"'}>
+        <div class="water-cup-fill" style="height:${filled?'100%':'0%'};"></div>
+      </div>`;
+    }).join('');
+  }
+
+  // Add/Reset btn — hanya hari ini
+  const addBtn = $('water-add-btn');
+  if(addBtn) addBtn.style.display = isToday ? 'flex' : 'none';
+
+  // Render ML section juga (sync dengan mode aktif)
+  if(typeof renderWellnessWater === 'function') renderWellnessWater();
+
+  // Sleep log — filter by date
+  renderWellnessSleepLog(d, isToday);
+}
+
+function wellnessCupTap(index, date) {
+  S.waterLog = S.waterLog || {};
+  const current = S.waterLog[date] || 0;
+  S.waterLog[date] = index < current ? index : index + 1;
+  save();
+  loadWellnessDate(_wellnessDate);
+  playSound('tick');
+}
+
+function toggleCupAdd() {
+  // legacy compat
+  wellnessCupTap(S.waterLog && S.waterLog[todayStr()] || 0, todayStr());
+}
+
+// Override resetWater untuk wellness page
+function resetWater() {
+  const d = _wellnessDate || todayStr();
+  if(d !== todayStr()) return;
+  S.waterLog = S.waterLog || {};
+  S.waterLog[d] = 0;
+  save();
+  loadWellnessDate(_wellnessDate);
+}
+
+function renderWellnessSleepLog(d, isToday) {
+  const el = $('sleep-log-list'); if(!el) return;
+  const inputWrap = $('wellness-sleep-input-wrap');
+  if(inputWrap) inputWrap.style.display = isToday ? 'block' : 'none';
+
+  const log = S.sleepLog || [];
+  const entries = log.filter(l => l.date === d);
+  if(!entries.length) {
+    el.innerHTML = `<div style="font-family:var(--font-mono, monospace);font-size:9px;color:var(--sub);padding:9px;">Belum ada log tidur${isToday ? '.' : ' untuk tanggal ini.'}</div>`;
+    return;
+  }
+  el.innerHTML = entries.map(l => {
+    const quality = l.hours >= 8 ? '🟢' : l.hours >= 6 ? '🟡' : '🔴';
+    const pct = Math.min(100, Math.round(l.hours / 9 * 100));
+    return `<div class="sleep-entry">
+      <div style="font-size:9px;color:var(--sub);">🌙 ${l.bed} → ☀️ ${l.wake}</div>
+      <div class="sleep-bar-wrap"><div class="sleep-bar-fill" style="width:${pct}%"></div></div>
+      <div style="font-family:sans-serif;font-weight:900;font-size:12px;flex-shrink:0;">${l.hours}h ${quality}</div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// NUTRITION — date filter + daily tracker + modal target
+// ════════════════════════════════════════════════════════════
+
+function initNutritionPage() {
+  _nutrViewDate = null;
+  const inp = $('nutr-date-filter');
+  if(inp) inp.value = '';
+  loadNutrSettingsUI();
+  loadNutrDate(null);
+}
+
+function loadNutrDate(dateStr) {
+  _nutrViewDate = dateStr || null;
+  const lblN = $('nutr-date-filter-label');
+  if(lblN) lblN.textContent = dateStr ? odpFormatLabel(dateStr) : odpTodayLabel();
+  const d = _nutrViewDate || todayStr();
+  const isToday = d === todayStr();
+
+  // Date label
+  const lbl = $('nutr-viewing-date');
+  if(lbl) {
+    const dt = new Date(d + 'T12:00:00');
+    lbl.textContent = dt.toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  }
+
+  // Scan area — hanya hari ini
+  const scanWrap = $('nutr-scan-wrap');
+  if(scanWrap) scanWrap.style.display = isToday ? 'block' : 'none';
+
+  // Render daily tracker (nutrisi consumed vs target)
+  renderNutrDailyTracker(d);
+
+  // Render meal log
+  renderNutrMealLog(d);
+}
+
+function renderNutrDailyTracker(date) {
+  const el = $('nutr-daily-tracker'); if(!el) return;
+  const targets = getNutrTargets();
+  const log = getNutrLog();
+  const meals = log[date] || [];
+
+  if(!meals.length) {
+    el.innerHTML = `<div class="analytics-card" style="text-align:center;padding:14px;">
+      <div style="font-family:var(--font-mono, monospace);font-size:9px;color:var(--sub);">Belum ada makanan yang dicatat hari ini.</div>
+    </div>`;
+    return;
+  }
+
+  // Hitung totals
+  const keys = ['kcal','protein','carbs','fat','fiber','sugar','sodium'];
+  const units = {kcal:'kkal',protein:'g',carbs:'g',fat:'g',fiber:'g',sugar:'g',sodium:'mg'};
+  const labels = {kcal:'Kalori',protein:'Protein',carbs:'Karbo',fat:'Lemak',fiber:'Serat',sugar:'Gula',sodium:'Sodium'};
+  const colors = {kcal:'#FF6B00',protein:'#00F5D4',carbs:'#FFE600',fat:'#FF3CAC',fiber:'#AAFF00',sugar:'#7B2FBE',sodium:'#0057FF'};
+
+  const totals = {};
+  keys.forEach(k => { totals[k] = meals.reduce((s,m) => s+(m[k]||0), 0); });
+
+  const mainKeys = ['kcal','protein','carbs','fat'];
+  const miniKeys = ['fiber','sugar','sodium'];
+
+  // Main 4 bars
+  const mainBars = mainKeys.map(k => {
+    const pct = Math.min(100, Math.round(totals[k]/(targets[k]||1)*100));
+    const over = totals[k] > targets[k];
+    return `<div style="margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;font-family:var(--font-mono, monospace);font-size:8px;margin-bottom:3px;">
+        <span style="color:${over?'var(--red)':'var(--sub)'};">${labels[k]}</span>
+        <span style="color:${over?'var(--red)':'var(--text)'};">${Math.round(totals[k])} / ${targets[k]} ${units[k]}</span>
+      </div>
+      <div style="height:6px;background:#222;border:1px solid var(--bc);overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:${over?'var(--red)':colors[k]};transition:width .4s;"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Mini 3
+  const miniCells = miniKeys.map(k => {
+    const pct = Math.min(100, Math.round(totals[k]/(targets[k]||1)*100));
+    const over = totals[k] > targets[k];
+    return `<div style="flex:1;background:var(--bg);border:var(--bo);padding:6px 8px;">
+      <div style="font-family:var(--font-mono, monospace);font-size:7px;color:${over?'var(--red)':'var(--sub)'};">${labels[k]}</div>
+      <div style="font-family:sans-serif;font-weight:900;font-size:11px;color:${over?'var(--red)':'var(--text)'};">${Math.round(totals[k])}<span style="font-size:7px;font-weight:400;"> ${units[k]}</span></div>
+      <div style="height:3px;background:#222;margin-top:3px;"><div style="height:100%;width:${pct}%;background:${over?'var(--red)':colors[k]};"></div></div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="analytics-card" style="margin-bottom:9px;">
+    <div style="font-family:var(--font-mono, monospace);font-size:8px;color:var(--sub);margin-bottom:9px;text-transform:uppercase;letter-spacing:1px;">Progress Nutrisi Harian</div>
+    ${mainBars}
+    <div style="display:flex;gap:5px;margin-top:5px;">${miniCells}</div>
+  </div>`;
+}
+
+function renderNutrMealLog(date) {
+  const el = $('nutr-meal-log'); if(!el) return;
+  const log = getNutrLog();
+  const meals = log[date] || [];
+  if(!meals.length) {
+    el.innerHTML = `<div style="font-family:var(--font-mono, monospace);font-size:9px;color:var(--sub);text-align:center;padding:14px;">Belum ada makanan yang dicatat.</div>`;
+    return;
+  }
+  el.innerHTML = meals.map((m,i) => `
+    <div class="nutr-meal-item">
+      <div class="nutr-meal-icon">${m.emoji||'🍽️'}</div>
+      <div class="nutr-meal-info">
+        <div class="nutr-meal-name">${m.name}${m.portion&&m.portion!==1?` <span style="font-size:8px;opacity:.6;">×${m.portion}</span>`:''}</div>
+        <div class="nutr-meal-meta">P:${m.protein}g · K:${m.carbs}g · L:${m.fat}g${m.time?' · '+m.time:''}</div>
+      </div>
+      <div class="nutr-meal-kcal">${m.kcal}<span style="font-family:var(--font-mono, monospace);font-size:7px;font-weight:400;"> kkal</span></div>
+      ${date===todayStr()?`<div class="nutr-meal-del" onclick="deleteNutrMeal(${i},'${date}')">×</div>`:''}
+    </div>`).join('');
+}
+
+function deleteNutrMeal(idx, date) {
+  const log = getNutrLog();
+  if(!log[date]) return;
+  log[date].splice(idx, 1);
+  saveNutrLog(log);
+  loadNutrDate(_nutrViewDate);
+}
+
+// Modal target
+function openNutrTargetModal() {
+  loadNutrSettingsUI();
+  openModal('modal-nutr-target');
+}
+function closeNutrTargetModal() {
+  closeModal('modal-nutr-target');
+}
+
+function saveNutrSettings() {
+  const targets = {
+    kcal:    +($('nset-kcal')?.value   || 2000),
+    protein: +($('nset-protein')?.value || 50),
+    carbs:   +($('nset-carbs')?.value   || 300),
+    fat:     +($('nset-fat')?.value     || 65),
+    fiber:   +($('nset-fiber')?.value   || 25),
+    sugar:   +($('nset-sugar')?.value   || 50),
+    sodium:  +($('nset-sodium')?.value  || 2300),
+    waterMl: +($('nset-water-ml')?.value || 2000),
+  };
+  try { localStorage.setItem('oht_nutr_targets', JSON.stringify(targets)); } catch(e){}
+  closeModal('modal-nutr-target');
+  loadNutrDate(_nutrViewDate);
+  if(typeof initWellnessPage === 'function') initWellnessPage();
+  toast('Target disimpan!', 'success');
+}
+
+// consumeMeal — setelah consume refresh nutrition page
+function consumeMeal() {
+  if(!_nutrResult) return;
+  const p = _nutrPortion;
+  const keys = ['kcal','protein','carbs','fat','fiber','sugar','sodium'];
+  const meal = { name: _nutrResult.name, emoji: _nutrResult.emoji||'🍽️', portion: p };
+  keys.forEach(k => { meal[k] = Math.round((_nutrResult[k]||0)*p); });
+  const now = new Date();
+  meal.time = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  const log = getNutrLog();
+  const today = todayStr();
+  if(!log[today]) log[today] = [];
+  log[today].push(meal);
+  saveNutrLog(log);
+  clearNutrScan();
+  toast(`✅ ${meal.emoji} ${meal.name} +${meal.kcal}kkal`, 'success');
+  // Refresh nutrition page (tidak pindah ke report)
+  loadNutrDate(null);
+}
+
+// ════════════════════════════════════════════════════════
+// WELLNESS WATER — ML mode + GELAS mode
+// ════════════════════════════════════════════════════════
+
+function setWellnessWaterMode(mode) {
+  _wellnessWaterMode = mode;
+  const tabCups = $('water-tab-cups');
+  const tabMl = $('water-tab-ml');
+  const secCups = $('water-section-cups');
+  const secMl = $('water-section-ml');
+  if(tabCups) { tabCups.classList.toggle('active', mode === 'cups'); tabCups.classList.toggle('locked', mode !== 'cups'); }
+  if(tabMl)   { tabMl.classList.toggle('active', mode === 'ml');     tabMl.classList.toggle('locked', mode !== 'ml'); }
+  if(secCups) secCups.style.display = mode === 'cups' ? 'block' : 'none';
+  if(secMl) secMl.style.display = mode === 'ml' ? 'block' : 'none';
+  renderWellnessWater();
+}
+
+// Tab GELAS/ML dikunci mengikuti mode yang dipilih di modal TARGET.
+// Klik tab yang tidak aktif hanya kasih tahu user untuk ganti lewat TARGET.
+function waterTabTap(mode) {
+  if(mode === _wellnessWaterMode) return;
+  toast('Ganti mode via tombol TARGET 🎯', 'info');
+}
+
+function getWaterMlData() {
+  try {
+    const raw = localStorage.getItem('oht_water_ml_log');
+    return raw ? JSON.parse(raw) : {};
+  } catch(e) { return {}; }
+}
+function saveWaterMlData(log) {
+  try { localStorage.setItem('oht_water_ml_log', JSON.stringify(log)); } catch(e) {}
+}
+
+function wellnessAddCup() {
+  const d = _wellnessDate || todayStr();
+  if(d !== todayStr()) return;
+  S.waterLog = S.waterLog || {};
+  const cur = S.waterLog[d] || 0;
+  if(cur >= 12) return;
+  S.waterLog[d] = cur + 1;
+  save();
+  renderWellnessWater();
+  playSound('tick');
+}
+
+function wellnessAddMl(ml) {
+  const d = _wellnessDate || todayStr();
+  if(d !== todayStr()) return;
+  const log = getWaterMlData();
+  log[d] = (log[d] || 0) + ml;
+  saveWaterMlData(log);
+  renderWellnessWater();
+  toast(`+${ml}ml 💧`, 'success');
+}
+
+function wellnessAddCustomMl() {
+  const inp = $('water-custom-ml');
+  const ml = parseInt(inp?.value || 0);
+  if(!ml || ml <= 0) { toast('Masukkan jumlah ml', 'error'); return; }
+  wellnessAddMl(ml);
+  if(inp) inp.value = '';
+}
+
+function renderWellnessWater() {
+  const d = _wellnessDate || todayStr();
+  const isToday = d === todayStr();
+  const targets = getNutrTargets();
+  const waterMlTarget = targets.waterMl || 2000;
+
+  if(_wellnessWaterMode === 'cups') {
+    S.waterLog = S.waterLog || {};
+    const wCount = S.waterLog[d] || 0;
+    const countEl = $('water-count'); if(countEl) countEl.textContent = wCount;
+    const msgs = ['Mulai minum! 💧','Bagus! 💧','Seperempat! 💧','Setengah! 🌊','Hampir! 🌊','Sebentar lagi! 🌊','Hampir penuh! 💦','Satu lagi! 💦','🏆 Terhidrasi!'];
+    const msgEl = $('water-msg'); if(msgEl) msgEl.textContent = msgs[Math.min(wCount, 8)];
+    const cups = $('water-cups');
+    if(cups) {
+      cups.innerHTML = Array.from({length: 8}, (_, i) => {
+        const filled = i < wCount;
+        return `<div class="water-cup ${filled?'full':''}" ${isToday?`onclick="wellnessCupTap(${i},'${d}')"`:'style="cursor:default;"'}>
+          <div class="water-cup-fill" style="height:${filled?'100%':'0%'};"></div>
+        </div>`;
+      }).join('');
+    }
+    const addBtn = $('water-add-btn');
+    if(addBtn) addBtn.style.display = isToday ? '' : 'none';
+  } else {
+    // ML mode
+    const log = getWaterMlData();
+    const total = log[d] || 0;
+    const pct = Math.min(100, Math.round(total / waterMlTarget * 100));
+    const totalEl = $('water-ml-total'); if(totalEl) totalEl.textContent = total;
+    const targetLbl = $('water-ml-target-lbl'); if(targetLbl) targetLbl.textContent = waterMlTarget;
+    const bar = $('water-ml-bar'); if(bar) bar.style.width = pct + '%';
+    const pctLbl = $('water-ml-pct-lbl');
+    if(pctLbl) pctLbl.textContent = `${pct}% dari target ${waterMlTarget}ml`;
+    // Sembunyikan input kalau bukan hari ini
+    const customRow = $('water-custom-ml');
+    if(customRow) customRow.parentElement.style.display = isToday ? 'flex' : 'none';
+  }
+}
+
+// Override resetWater untuk wellness
+function resetWater() {
+  const d = _wellnessDate || todayStr();
+  if(d !== todayStr()) return;
+  if(_wellnessWaterMode === 'cups') {
+    S.waterLog = S.waterLog || {};
+    S.waterLog[d] = 0;
+    save();
+  } else {
+    const log = getWaterMlData();
+    log[d] = 0;
+    saveWaterMlData(log);
+  }
+  renderWellnessWater();
+}
+
+// Override initWellnessPage untuk include water mode
+
+// initWellnessPage override removed
+
+function getWellnessConfig() {
+  const defaults = {waterMode:'cups', waterCups:8, waterMl:2000, sleepHours:7};
+  try {
+    const raw = localStorage.getItem('oht_wellness_config');
+    return raw ? Object.assign({}, defaults, JSON.parse(raw)) : defaults;
+  } catch(e) { return defaults; }
+}
+function saveWellnessConfig(cfg) {
+  try { localStorage.setItem('oht_wellness_config', JSON.stringify(cfg)); } catch(e) {}
+}
+function getWellnessStreaks() {
+  try {
+    const raw = localStorage.getItem('oht_wellness_streaks');
+    return raw ? JSON.parse(raw) : {waterStreak:0, waterBest:0, sleepStreak:0, sleepBest:0, waterLastDate:'', sleepLastDate:''};
+  } catch(e) { return {waterStreak:0, waterBest:0, sleepStreak:0, sleepBest:0, waterLastDate:'', sleepLastDate:''}; }
+}
+function saveWellnessStreaks(ws) {
+  try { localStorage.setItem('oht_wellness_streaks', JSON.stringify(ws)); } catch(e) {}
+}
+
+// ── Modal: Water Target ──
+function openWaterTargetModal() {
+  const cfg = getWellnessConfig();
+  // Set UI values
+  const modeEl = cfg.waterMode === 'ml' ? $('wt-mode-ml') : $('wt-mode-cups');
+  if(modeEl) setWaterTargetMode(cfg.waterMode, modeEl);
+  const cupsInp = $('wt-cups-val'); if(cupsInp) cupsInp.value = cfg.waterCups;
+  const mlInp = $('wt-ml-val'); if(mlInp) mlInp.value = cfg.waterMl;
+  openModal('modal-water-target');
+}
+function setWaterTargetMode(mode, el) {
+  document.querySelectorAll('[id^="wt-mode-"]').forEach(b => b.classList.remove('sel'));
+  if(el) el.classList.add('sel');
+  const cupsRow = $('wt-cups-row'); if(cupsRow) cupsRow.style.display = mode === 'cups' ? 'block' : 'none';
+  const mlRow = $('wt-ml-row'); if(mlRow) mlRow.style.display = mode === 'ml' ? 'block' : 'none';
+}
+function saveWaterTarget() {
+  const cfg = getWellnessConfig();
+  const modeCups = $('wt-mode-cups')?.classList.contains('sel');
+  cfg.waterMode = modeCups ? 'cups' : 'ml';
+  cfg.waterCups = parseInt($('wt-cups-val')?.value || 8);
+  cfg.waterMl   = parseInt($('wt-ml-val')?.value   || 2000);
+  saveWellnessConfig(cfg);
+  // Sync wellness water mode
+  setWellnessWaterMode(cfg.waterMode);
+  closeModal('modal-water-target');
+  renderWellnessWater();
+  renderWaterTargetStrip();
+  toast('Target air disimpan! 💧', 'success');
+}
+
+// ── Modal: Sleep Target ──
+function openSleepTargetModal() {
+  const cfg = getWellnessConfig();
+  const inp = $('sleep-target-hours'); if(inp) inp.value = cfg.sleepHours;
+  openModal('modal-sleep-target');
+}
+function saveSleepTarget() {
+  const cfg = getWellnessConfig();
+  cfg.sleepHours = parseFloat($('sleep-target-hours')?.value || 7);
+  saveWellnessConfig(cfg);
+  closeModal('modal-sleep-target');
+  renderSleepTargetStrip();
+  toast(`Target tidur: ${cfg.sleepHours} jam 😴`, 'success');
+}
+
+// ── Strip info target (tampil di bawah header) ──
+function renderWaterTargetStrip() {
+  const el = $('water-target-strip'); if(!el) return;
+  const cfg = getWellnessConfig();
+  const ws = getWellnessStreaks();
+  const mode = cfg.waterMode === 'ml' ? `${cfg.waterMl}ml` : `${cfg.waterCups} gelas`;
+  const streak = ws.waterStreak || 0;
+  const streakBadge = streak > 0 ? ` · 🔥 ${streak} hari berturut` : '';
+  el.innerHTML = `Target: <strong style="color:var(--yellow);">${mode}/hari</strong>${streakBadge} · Best: ${ws.waterBest||0} hari`;
+}
+
+function renderSleepTargetStrip() {
+  const el = $('sleep-target-strip'); if(!el) return;
+  const cfg = getWellnessConfig();
+  const ws = getWellnessStreaks();
+  const streak = ws.sleepStreak || 0;
+  const streakBadge = streak > 0 ? ` · 🔥 ${streak} hari berturut` : '';
+  el.innerHTML = `Target: <strong style="color:var(--yellow);">${cfg.sleepHours} jam/malam</strong>${streakBadge} · Best: ${ws.sleepBest||0} hari`;
+}
+
+// ── logSleepWellness — menggantikan logSleep, dengan XP + streak check ──
+function logSleepWellness() {
+  const bed  = $('sleep-bed')?.value;
+  const wake = $('sleep-wake')?.value;
+  if(!bed || !wake) { toast('Isi waktu tidur dan bangun!', 'error'); return; }
+
+  const [bh, bm] = bed.split(':').map(Number);
+  const [wh, wm] = wake.split(':').map(Number);
+  let dur = (wh * 60 + wm) - (bh * 60 + bm);
+  if(dur < 0) dur += 24 * 60;
+  const hrs = parseFloat((dur / 60).toFixed(1));
+
+  S.sleepLog = S.sleepLog || [];
+  S.sleepLog.unshift({ date: todayStr(), bed, wake, hours: hrs });
+  if(S.sleepLog.length > 60) S.sleepLog = S.sleepLog.slice(0, 60);
+  save();
+
+  // XP + streak check
+  const cfg = getWellnessConfig();
+  const ws = getWellnessStreaks();
+  const target = cfg.sleepHours || 7;
+
+  if(hrs >= target) {
+    // XP
+    let xp = 25;
+    // Streak update
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
+    const yd = yesterday.getFullYear()+'-'+String(yesterday.getMonth()+1).padStart(2,'0')+'-'+String(yesterday.getDate()).padStart(2,'0');
+    if(ws.sleepLastDate === yd || ws.sleepLastDate === todayStr()) {
+      if(ws.sleepLastDate !== todayStr()) ws.sleepStreak = (ws.sleepStreak||0) + 1;
+    } else {
+      ws.sleepStreak = 1;
+    }
+    ws.sleepLastDate = todayStr();
+    ws.sleepBest = Math.max(ws.sleepBest||0, ws.sleepStreak);
+    // Streak bonus XP
+    if(ws.sleepStreak % 7 === 0) xp += 50;
+    saveWellnessStreaks(ws);
+    S.xp = (S.xp||0) + xp; save();
+    if(typeof awardWellnessXP==='function') awardWellnessXP('sleep');
+  else toast(`😴 ${hrs}h logged! Target tercapai! +20 XP 🎉`, 'success');
+    if(ws.sleepStreak % 7 === 0) confetti(30);
+  } else {
+    ws.sleepStreak = 0; ws.sleepLastDate = todayStr();
+    saveWellnessStreaks(ws);
+    toast(`😴 ${hrs}h logged (target ${target}h belum tercapai)`, 'info');
+  }
+
+  renderSleepTargetStrip();
+  renderWellnessSleepLog(_wellnessDate || todayStr(), true);
+  renderWellnessStreakCards();
+  if(typeof renderStats === 'function') renderStats();
+}
+
+// ── Check water target setiap kali update (dipanggil dari renderWellnessWater) ──
+function checkWaterTargetMet() {
+  const d = todayStr();
+  const cfg = getWellnessConfig();
+  const ws = getWellnessStreaks();
+  if(ws.waterLastDate === d) return; // sudah dicek hari ini
+
+  let met = false;
+  if(cfg.waterMode === 'cups') {
+    S.waterLog = S.waterLog || {};
+    const count = S.waterLog[d] || 0;
+    met = count >= (cfg.waterCups || 8);
+  } else {
+    const log = getWaterMlData();
+    const total = log[d] || 0;
+    met = total >= (cfg.waterMl || 2000);
+  }
+
+  if(met) {
+    let xp = 20;
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
+    const yd = yesterday.getFullYear()+'-'+String(yesterday.getMonth()+1).padStart(2,'0')+'-'+String(yesterday.getDate()).padStart(2,'0');
+    if(ws.waterLastDate === yd) {
+      ws.waterStreak = (ws.waterStreak||0) + 1;
+    } else if(ws.waterLastDate !== d) {
+      ws.waterStreak = 1;
+    }
+    ws.waterLastDate = d;
+    ws.waterBest = Math.max(ws.waterBest||0, ws.waterStreak);
+    if(ws.waterStreak % 7 === 0) { xp += 35; confetti(20); }
+    saveWellnessStreaks(ws);
+    S.xp = (S.xp||0) + xp; save();
+    if(typeof awardWellnessXP!=='function') toast(`💧 Target air tercapai! +${xp} XP`, 'success');
+    else awardWellnessXP('water');
+    renderWaterTargetStrip();
+    renderWellnessStreakCards();
+    if(typeof renderStats === 'function') renderStats();
+  }
+}
+
+// ── Render streak cards di Streaks page ──
+function renderWellnessStreakCards() {
+  const ws = getWellnessStreaks();
+  const cfg = getWellnessConfig();
+
+  // Water streak card
+  const wCard = $('wellness-water-streak-card');
+  if(wCard) {
+    const s = ws.waterStreak || 0;
+    const best = ws.waterBest || 0;
+    const badge = s >= 30 ? '🏆 LEGENDARY' : s >= 14 ? '⚡ ON FIRE' : s >= 7 ? '🔥 HOT' : s >= 3 ? '✨ WARMING' : '🌱 STARTING';
+    const targetLabel = cfg.waterMode === 'ml' ? `${cfg.waterMl}ml/hari` : `${cfg.waterCups} gelas/hari`;
+    wCard.innerHTML = `
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="font-size:36px;">💧</div>
+        <div style="flex:1;">
+          <div style="font-family:sans-serif;font-weight:900;font-size:28px;color:var(--yellow);">${s}</div>
+          <div style="font-family:var(--font-mono, monospace);font-size:8px;color:var(--sub);">HARI BERTURUT-TURUT</div>
+          <div style="font-family:var(--font-mono, monospace);font-size:8px;color:var(--sub);margin-top:2px;">Target: ${targetLabel} · Best: ${best} hari</div>
+        </div>
+        <div style="font-family:var(--font-mono, monospace);font-size:9px;color:var(--yellow);text-align:right;">${badge}</div>
+      </div>`;
+  }
+
+  // Sleep streak card
+  const sCard = $('wellness-sleep-streak-card');
+  if(sCard) {
+    const s = ws.sleepStreak || 0;
+    const best = ws.sleepBest || 0;
+    const badge = s >= 30 ? '🏆 LEGENDARY' : s >= 14 ? '⚡ ON FIRE' : s >= 7 ? '🔥 HOT' : s >= 3 ? '✨ WARMING' : '🌱 STARTING';
+    sCard.innerHTML = `
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="font-size:36px;">😴</div>
+        <div style="flex:1;">
+          <div style="font-family:sans-serif;font-weight:900;font-size:28px;color:var(--yellow);">${s}</div>
+          <div style="font-family:var(--font-mono, monospace);font-size:8px;color:var(--sub);">HARI BERTURUT-TURUT</div>
+          <div style="font-family:var(--font-mono, monospace);font-size:8px;color:var(--sub);margin-top:2px;">Target: ≥${cfg.sleepHours}h/malam · Best: ${best} hari</div>
+        </div>
+        <div style="font-family:var(--font-mono, monospace);font-size:9px;color:var(--yellow);text-align:right;">${badge}</div>
+      </div>`;
+  }
+}
+
+// ── Hook setStreaksTab untuk wellness ──
+
+// setStreaksTab override removed
+
+
+// ── Override initWellnessPage final version ──
+// initWellnessPage (duplicate removed)
+
+
+// ── Override renderWellnessWater to also check target ──
+function renderWellnessWater() {
+  const cfg = getWellnessConfig();
+  const d = _wellnessDate || todayStr();
+  const isToday = d === todayStr();
+
+  // Update target label di ML mode
+  const mlTargetLbl = $('water-ml-target-lbl');
+  if(mlTargetLbl) mlTargetLbl.textContent = cfg.waterMl || 2000;
+
+  if(_wellnessWaterMode === 'cups') {
+    S.waterLog = S.waterLog || {};
+    const wCount = S.waterLog[d] || 0;
+    const target = cfg.waterCups || 8;
+    const countEl = $('water-count'); if(countEl) countEl.textContent = wCount;
+    const msgs = ['Mulai minum! 💧','Bagus! 💧','Seperempat! 💧','Setengah! 🌊','Hampir! 🌊','Sebentar lagi! 🌊','Hampir penuh! 💦','Satu lagi! 💦','🏆 Terhidrasi!'];
+    const msgEl = $('water-msg'); if(msgEl) msgEl.textContent = msgs[Math.min(wCount, target)];
+    const cups = $('water-cups');
+    if(cups) {
+      cups.innerHTML = Array.from({length: target}, (_, i) => {
+        const filled = i < wCount;
+        return `<div class="water-cup ${filled?'full':''}" ${isToday?`onclick="wellnessCupTap(${i},'${d}')"`:'style="cursor:default;"'}>
+          <div class="water-cup-fill" style="height:${filled?'100%':'0%'};"></div>
+        </div>`;
+      }).join('');
+    }
+    // Update count label dengan target custom
+    const countSpan = document.querySelector('#water-section-cups span[style*="sub"]');
+    if(countSpan) countSpan.textContent = ` / ${target} gelas`;
+  } else {
+    const log = getWaterMlData();
+    const total = log[d] || 0;
+    const target = cfg.waterMl || 2000;
+    const pct = Math.min(100, Math.round(total / target * 100));
+    const totalEl = $('water-ml-total'); if(totalEl) totalEl.textContent = total;
+    if(mlTargetLbl) mlTargetLbl.textContent = target;
+    const bar = $('water-ml-bar'); if(bar) bar.style.width = pct + '%';
+    const pctLbl = $('water-ml-pct-lbl');
+    if(pctLbl) pctLbl.textContent = `${pct}% dari target ${target}ml`;
+    // Sembunyikan input kalau bukan hari ini
+    const customRow = $('water-custom-ml');
+    if(customRow) {
+      const parent = customRow.closest('div[style*="display:flex"]') || customRow.parentElement;
+      if(parent) parent.style.display = isToday ? 'flex' : 'none';
+    }
+    // Quick add buttons juga
+    const quickBtns = document.querySelectorAll('#water-section-ml .btn-primary');
+    quickBtns.forEach(b => b.style.display = isToday ? '' : 'none');
+  }
+
+  const addBtn = $('water-add-btn');
+  if(addBtn) addBtn.style.display = (isToday && _wellnessWaterMode==='cups') ? '' : 'none';
+
+  // Check target met hanya hari ini
+  if(isToday) setTimeout(checkWaterTargetMet, 100);
+}
+
+// ════════════════════════════════════════════════════════════
+// CUSTOM DATE PICKER
+// ════════════════════════════════════════════════════════════
+let _odpTarget   = null;
+let _odpCallback = null;
+let _odpYear     = 0;
+let _odpMonth    = 0;
+let _odpSelected = null;
+
+const ODP_MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const ODP_DAYS   = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+
+// Format tanggal untuk label tombol
+function odpFormatLabel(dateStr) {
+  if(!dateStr) return odpTodayLabel();
+  const today = todayStr();
+  if(dateStr === today) return odpTodayLabel();
+  const dt = new Date(dateStr + 'T12:00:00');
+  const day = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'][dt.getDay()];
+  return `${day}, ${dt.getDate()} ${ODP_MONTHS[dt.getMonth()].slice(0,3)} ${dt.getFullYear()}`;
+}
+
+function odpTodayLabel() {
+  const now = new Date();
+  const day = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'][now.getDay()];
+  return `${day}, ${now.getDate()} ${ODP_MONTHS[now.getMonth()].slice(0,3)} ${now.getFullYear()}`;
+}
+
+// Inisialisasi semua label tombol ke "Hari ini" saat load
+function initAllDateFilterLabels() {
+  const ids = ['report-date-filter','wellness-date-filter','nutr-date-filter','journal-date-filter'];
+  ids.forEach(id => {
+    const lbl = $(id + '-label');
+    if(lbl) lbl.textContent = odpTodayLabel();
+  });
+}
+
+function openDatePicker(targetId, callbackFn) {
+  _odpTarget   = targetId;
+  _odpCallback = callbackFn;
+
+  const now = new Date();
+  // Kalau ada tanggal terpilih, buka bulan itu
+  if(_odpSelected && _odpTarget === targetId) {
+    const d = new Date(_odpSelected + 'T12:00:00');
+    _odpYear  = d.getFullYear();
+    _odpMonth = d.getMonth();
+  } else {
+    _odpYear  = now.getFullYear();
+    _odpMonth = now.getMonth();
+  }
+
+  const popup   = $('oht-datepicker-popup');
+  const overlay = $('oht-datepicker-overlay');
+  if(!popup) return;
+
+  // Posisi: di bawah/atas tombol
+  const btn = document.querySelector(`#wrap-${targetId} button`);
+  popup.style.display   = 'block';
+  overlay.style.display = 'block';
+
+  if(btn) {
+    const rect     = btn.getBoundingClientRect();
+    const popupH   = 300;
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    const top = spaceBelow >= popupH
+      ? rect.bottom + 6
+      : Math.max(8, rect.top - popupH - 6);
+    const left = Math.min(Math.max(8, rect.left), window.innerWidth - 272);
+    popup.style.top  = top  + 'px';
+    popup.style.left = left + 'px';
+  }
+
+  buildDatePickerGrid();
+}
+
+function closeDatePicker() {
+  const p = $('oht-datepicker-popup');
+  const o = $('oht-datepicker-overlay');
+  if(p) p.style.display = 'none';
+  if(o) o.style.display = 'none';
+}
+
+// Tutup popup picker manapun yang sedang terbuka (dipanggil dari overlay)
+function closeAnyPicker() {
+  closeDatePicker();
+  closeMonthPicker();
+}
+
+function odpNav(dir) {
+  _odpMonth += dir;
+  if(_odpMonth < 0)  { _odpMonth = 11; _odpYear--; }
+  if(_odpMonth > 11) { _odpMonth = 0;  _odpYear++; }
+  buildDatePickerGrid();
+}
+
+function buildDatePickerGrid() {
+  const monthLbl = $('odp-month-label');
+  if(monthLbl) monthLbl.textContent = `${ODP_MONTHS[_odpMonth]} ${_odpYear}`;
+
+  const grid = $('odp-days-grid');
+  if(!grid) return;
+
+  const today    = todayStr();
+  const firstDay = new Date(_odpYear, _odpMonth, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(_odpYear, _odpMonth + 1, 0).getDate();
+  const daysInPrev  = new Date(_odpYear, _odpMonth, 0).getDate();
+
+  // Header hari (Min Sen Sel ...)
+  let html = ODP_DAYS.map(d => `<div class="odp-dow">${d}</div>`).join('');
+
+  // Pad kiri dari bulan sebelumnya
+  for(let i = firstDay - 1; i >= 0; i--) {
+    html += `<div class="odp-day other-month">${daysInPrev - i}</div>`;
+  }
+
+  // Hari bulan ini
+  for(let d = 1; d <= daysInMonth; d++) {
+    const ds = `${_odpYear}-${String(_odpMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = ds === today;
+    const isSel   = ds === _odpSelected;
+    html += `<div class="odp-day${isToday?' today':''}${isSel?' selected':''}" onclick="odpSelect('${ds}')">${d}</div>`;
+  }
+
+  // Pad kanan
+  const total    = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+  const trailing = total - firstDay - daysInMonth;
+  for(let d = 1; d <= trailing; d++) {
+    html += `<div class="odp-day other-month">${d}</div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+function odpSelect(dateStr) {
+  _odpSelected = dateStr;
+  // Update label tombol
+  const lbl = $(_odpTarget + '-label');
+  if(lbl) lbl.textContent = odpFormatLabel(dateStr);
+  // Callback
+  if(_odpCallback && typeof window[_odpCallback] === 'function') {
+    window[_odpCallback](dateStr);
+  }
+  closeDatePicker();
+}
+
+function odpToday() {
+  _odpSelected = null;
+  const today = todayStr();
+  // Update label
+  const lbl = $(_odpTarget + '-label');
+  if(lbl) lbl.textContent = odpTodayLabel();
+  // Callback dengan string kosong = hari ini
+  if(_odpCallback && typeof window[_odpCallback] === 'function') {
+    window[_odpCallback]('');
+  }
+  closeDatePicker();
+}
+
+function odpClear() {
+  odpToday();
+}
+
+// ════════════════════════════════════════════════════════════
+// MONTH PICKER (Report) — style sama dengan date picker harian,
+// tapi grid isinya 12 bulan, panah maju/mundur = antar TAHUN.
+// ════════════════════════════════════════════════════════════
+let _ompYear = null;
+
+function openMonthPicker() {
+  const now = new Date();
+  _ompYear = _reportViewMonth ? _reportViewMonth.y : now.getFullYear();
+
+  const popup   = $('oht-monthpicker-popup');
+  const overlay = $('oht-datepicker-overlay');
+  if(!popup) return;
+
+  popup.style.display   = 'block';
+  overlay.style.display = 'block';
+
+  const btn = document.querySelector('#wrap-report-month-filter button');
+  if(btn) {
+    const rect       = btn.getBoundingClientRect();
+    const popupH     = 260;
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    const top  = spaceBelow >= popupH ? rect.bottom + 6 : Math.max(8, rect.top - popupH - 6);
+    const left = Math.min(Math.max(8, rect.left), window.innerWidth - 272);
+    popup.style.top  = top  + 'px';
+    popup.style.left = left + 'px';
+  }
+
+  buildMonthPickerGrid();
+}
+
+function closeMonthPicker() {
+  const p = $('oht-monthpicker-popup');
+  if(p) p.style.display = 'none';
+}
+
+function ompNav(dir) {
+  _ompYear += dir;
+  buildMonthPickerGrid();
+}
+
+function buildMonthPickerGrid() {
+  const lbl = $('omp-year-label');
+  if(lbl) lbl.textContent = _ompYear;
+
+  const grid = $('omp-months-grid');
+  if(!grid) return;
+
+  const now  = new Date();
+  const curY = now.getFullYear(), curM = now.getMonth();
+  const selY = _reportViewMonth ? _reportViewMonth.y : curY;
+  const selM = _reportViewMonth ? _reportViewMonth.m : curM;
+
+  let html = '';
+  ODP_MONTHS.forEach((name, i) => {
+    const isFuture = _ompYear > curY || (_ompYear === curY && i > curM);
+    const isSel    = _ompYear === selY && i === selM;
+    const isCur    = _ompYear === curY && i === curM;
+    html += `<div class="omp-month-cell${isSel?' selected':''}${isCur?' today':''}${isFuture?' disabled':''}" ${isFuture?'':`onclick="ompSelect(${_ompYear},${i})"`}>${name.slice(0,3)}</div>`;
+  });
+  grid.innerHTML = html;
+}
+
+function ompSelect(y, m) {
+  const now = new Date();
+  const isCurrent = (y === now.getFullYear() && m === now.getMonth());
+  _reportViewMonth = isCurrent ? null : {y, m};
+  renderReport();
+  closeMonthPicker();
+  const o = $('oht-datepicker-overlay'); if(o) o.style.display = 'none';
+}
+
+function ompThisMonth() {
+  _reportViewMonth = null;
+  renderReport();
+  closeMonthPicker();
+  const o = $('oht-datepicker-overlay'); if(o) o.style.display = 'none';
+}
+
+
+
+// ════════════════════════════════════════════════════════════
+// CHIBI CHARACTER SYSTEM
+// ════════════════════════════════════════════════════════════
+
+// Character state
+const CHAR_STATE = {
+  x: 0, y: 0,          // current canvas position
+  targetX: 0, targetY: 0,
+  moving: false,
+  facing: 1,            // 1=right, -1=left
+  action: 'idle',       // 'idle' | 'walk' | 'water' | 'hoe' | 'harvest'
+  actionTimer: 0,
+  tool: null,           // 'water' | 'hoe' | 'harvest' | null
+  frame: 0,             // animation frame
+  walkFrame: 0,
+};
+
+// Character appearance (loaded from profile)
+function getCharConfig() {
+  try {
+    const r = localStorage.getItem('oht_char');
+    return r ? JSON.parse(r) : getDefaultChar();
+  } catch(e) { return getDefaultChar(); }
+}
+function saveCharConfig(c) {
+  try { localStorage.setItem('oht_char', JSON.stringify(c)); } catch(e){}
+}
+function getDefaultChar() {
+  return {
+    hairColor: '#3a2000',
+    hairStyle: 'short',    // 'short' | 'long' | 'bun'
+    skinColor: '#f5c5a3',
+    shirtColor: '#4a90d9',
+    pantsColor: '#2d4a8a',
+    shoeColor:  '#3a2000',
+    accessory:  'none',    // 'none' | 'hat' | 'glasses' | 'scarf'
+    accColor:   '#e83',
+  };
+}
+
+// Draw chibi character on canvas
+function drawChibiChar(ctx, x, y, facing, action, frame, cfg) {
+  ctx.save();
+  ctx.translate(x, y);
+  if(facing < 0) { ctx.scale(-1, 1); } // flip for direction
+
+  const s = 1; // scale multiplier
+  const walkBob = action === 'walk' ? Math.sin(frame * 0.3) * 2 : 0;
+  const bodyY = walkBob;
+
+  // ── Shadow ──
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath();
+  ctx.ellipse(0, 2, 10, 3, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // ── Legs ──
+  const legSwing = action === 'walk' ? Math.sin(frame * 0.3) * 8 : 0;
+  // Left leg
+  ctx.fillStyle = cfg.pantsColor;
+  ctx.fillRect(-7 + legSwing, bodyY + 14, 5, 12);
+  // Right leg
+  ctx.fillRect(2 - legSwing, bodyY + 14, 5, 12);
+  // Shoes
+  ctx.fillStyle = cfg.shoeColor;
+  ctx.fillRect(-9 + legSwing, bodyY + 24, 7, 4);
+  ctx.fillRect(0 - legSwing, bodyY + 24, 7, 4);
+
+  // ── Arms ──
+  const armSwing = action === 'walk' ? Math.sin(frame * 0.3 + Math.PI) * 8 : 0;
+  const armRaise = (action === 'water' || action === 'hoe') ? -10 : 0;
+  ctx.fillStyle = cfg.shirtColor;
+  // Left arm
+  ctx.save();
+  ctx.translate(-10, bodyY + 4);
+  ctx.rotate((-15 + armSwing + armRaise) * Math.PI/180);
+  ctx.fillRect(-3, 0, 5, 12);
+  ctx.restore();
+  // Right arm
+  ctx.save();
+  ctx.translate(10, bodyY + 4);
+  ctx.rotate((15 - armSwing + armRaise) * Math.PI/180);
+  ctx.fillRect(-2, 0, 5, 12);
+  ctx.restore();
+
+  // ── Body / Shirt ──
+  ctx.fillStyle = cfg.shirtColor;
+  ctx.fillRect(-8, bodyY + 0, 16, 16);
+  // Collar
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.fillRect(-3, bodyY, 6, 3);
+
+  // ── Head ──
+  ctx.fillStyle = cfg.skinColor;
+  ctx.beginPath();
+  ctx.ellipse(0, bodyY - 12, 10, 11, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // ── Eyes ──
+  const blinkH = (frame % 60 > 57) ? 1 : 5; // blink effect
+  ctx.fillStyle = '#1a0a00';
+  ctx.beginPath(); ctx.ellipse(-3.5, bodyY - 13, 2, blinkH/2, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(3.5,  bodyY - 13, 2, blinkH/2, 0, 0, Math.PI*2); ctx.fill();
+  // Eye shine
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(-3, bodyY - 14, 0.8, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(4,  bodyY - 14, 0.8, 0, Math.PI*2); ctx.fill();
+
+  // ── Mouth ──
+  ctx.strokeStyle = '#a05030';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  if(action === 'water' || action === 'harvest') {
+    ctx.arc(0, bodyY - 9, 3, 0, Math.PI); // happy mouth
+  } else {
+    ctx.moveTo(-2, bodyY - 8); ctx.lineTo(2, bodyY - 8);
+  }
+  ctx.stroke();
+
+  // ── Cheeks ──
+  ctx.fillStyle = 'rgba(255,120,100,0.25)';
+  ctx.beginPath(); ctx.ellipse(-5, bodyY - 10, 3, 2, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(5,  bodyY - 10, 3, 2, 0, 0, Math.PI*2); ctx.fill();
+
+  // ── Hair ──
+  ctx.fillStyle = cfg.hairColor;
+  if(cfg.hairStyle === 'long') {
+    // Long hair — sides + back
+    ctx.beginPath();
+    ctx.ellipse(0, bodyY - 18, 11, 8, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillRect(-11, bodyY - 16, 5, 18); // left long
+    ctx.fillRect(6,   bodyY - 16, 5, 18); // right long
+    ctx.beginPath(); ctx.arc(0, bodyY - 20, 10, Math.PI, 0); ctx.fill();
+  } else if(cfg.hairStyle === 'bun') {
+    ctx.beginPath(); ctx.arc(0, bodyY - 20, 10, Math.PI, 0); ctx.fill();
+    ctx.fillRect(-10, bodyY - 20, 20, 8);
+    ctx.beginPath(); ctx.arc(0, bodyY - 26, 5, 0, Math.PI*2); ctx.fill(); // bun
+  } else {
+    // Short
+    ctx.beginPath(); ctx.arc(0, bodyY - 20, 10, Math.PI, 0); ctx.fill();
+    ctx.fillRect(-10, bodyY - 20, 20, 8);
+    // Side tufts
+    ctx.beginPath(); ctx.arc(-8, bodyY - 15, 4, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(8,  bodyY - 15, 4, 0, Math.PI*2); ctx.fill();
+  }
+
+  // ── Accessory ──
+  if(cfg.accessory === 'hat') {
+    ctx.fillStyle = cfg.accColor;
+    ctx.fillRect(-10, bodyY - 32, 20, 6);
+    ctx.fillRect(-6,  bodyY - 38, 12, 10);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(-5, bodyY - 37, 10, 2);
+  } else if(cfg.accessory === 'glasses') {
+    ctx.strokeStyle = cfg.accColor; ctx.lineWidth = 1.5;
+    ctx.strokeRect(-7, bodyY - 15, 5, 4);
+    ctx.strokeRect(2,  bodyY - 15, 5, 4);
+    ctx.beginPath(); ctx.moveTo(-2, bodyY - 13); ctx.lineTo(2, bodyY - 13); ctx.stroke();
+  } else if(cfg.accessory === 'scarf') {
+    ctx.fillStyle = cfg.accColor;
+    ctx.fillRect(-9, bodyY - 1, 18, 4);
+    ctx.beginPath(); ctx.arc(0, bodyY + 2, 4, 0, Math.PI); ctx.fill();
+  }
+
+  // ── Tool in hand ──
+  if(CHAR_STATE.tool === 'water') {
+    ctx.strokeStyle = '#4af'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(10, bodyY + 4);
+    ctx.lineTo(18, bodyY - 4);
+    ctx.stroke();
+    // Watering can
+    ctx.fillStyle = '#4af';
+    ctx.fillRect(16, bodyY - 8, 8, 6);
+    ctx.fillStyle = '#2af';
+    ctx.fillRect(22, bodyY - 10, 2, 4);
+    // Water drops
+    if(action === 'water') {
+      for(let d = 0; d < 3; d++) {
+        const t = (frame * 0.1 + d * 0.3) % 1;
+        ctx.fillStyle = `rgba(100,200,255,${1-t})`;
+        ctx.beginPath();
+        ctx.arc(24 + d * 2, bodyY - 8 + t * 12, 1.5, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+  } else if(CHAR_STATE.tool === 'hoe') {
+    ctx.strokeStyle = '#a84'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(10, bodyY + 4); ctx.lineTo(20, bodyY - 12); ctx.stroke();
+    ctx.fillStyle = '#876';
+    ctx.fillRect(17, bodyY - 16, 8, 4);
+  } else if(CHAR_STATE.tool === 'harvest') {
+    ctx.fillStyle = '#c84'; ctx.strokeStyle = '#a63'; ctx.lineWidth = 1;
+    // Basket
+    ctx.beginPath();
+    ctx.arc(16, bodyY + 6, 7, 0, Math.PI*2);
+    ctx.fillStyle = '#c84'; ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#a63';
+    ctx.fillRect(10, bodyY + 2, 12, 2);
+  }
+
+  ctx.restore();
+}
+
+// ════════════════════════════════════════════════════════════
+// PROFILE PAGE
+// ════════════════════════════════════════════════════════════
+
+function initProfilePage() {
+  setProfileMode('view');
+  if(typeof renderProfileSocialSection==='function') setTimeout(renderProfileSocialSection,100);
+}
+
+function setProfileMode(mode) {
+  const viewEl = $('profile-view-mode');
+  const editEl = $('profile-edit-mode');
+  if(viewEl) viewEl.style.display = mode === 'view' ? 'block' : 'none';
+  if(editEl) editEl.style.display = mode === 'edit' ? 'block' : 'none';
+  if(mode === 'view') {renderProfilePage(); setTimeout(()=>{ const c=$('profile-char-canvas'); if(c && typeof drawChibiChar==='function') {/* redrawn by renderProfilePage */}},100);}
+  else {renderProfileEdit(); setTimeout(drawEditPreview, 80);}
+}
+
+function renderProfileView() {
+  const el = $('profile-canvas-wrap'); if(!el) return;
+  renderProfilePage(); // uses existing canvas render
+}
+
+function renderProfilePage() {
+  const el = $('profile-canvas-wrap'); if(!el) return;
+  const cfg = getCharConfig();
+  const xp = S.xp || 0;
+  const lvl = Math.max(1, Math.floor(xp / 100) + 1);
+  const xpInLevel = xp % 100;
+
+  // Habit breakdown by frequency
+  const activeHabits = (S.habits||[]).filter(h=>!h.archived);
+  const dailyCount = activeHabits.filter(h=>DAILY_FREQS.includes(h.freq)).length;
+  const weeklyCount = activeHabits.filter(h=>h.freq==='weekly').length;
+  const monthlyCount = activeHabits.filter(h=>h.freq==='monthly').length;
+  const bestStreak = (S.habits||[]).reduce((m,h)=>Math.max(m,h.bestStreak||0),0);
+
+  // Canvas full viewport width (bleed ke edge), tinggi cukup untuk kartu identitas + karakter
+  const pageEl = $('profile-page-content') || document.querySelector('#page-profile .page-content');
+  const pageW = pageEl ? pageEl.offsetWidth : Math.min(window.innerWidth, 600);
+  const canvasH = Math.max(260, Math.round(pageW * 0.78));
+
+  el.innerHTML = `
+    <div style="position:relative;width:100%;height:${canvasH}px;overflow:hidden;margin-bottom:0;">
+      <canvas id="profile-char-canvas" width="${pageW}" height="${canvasH}"
+        style="position:absolute;inset:0;display:block;width:100%;height:100%;cursor:pointer;" onclick="rotateProfileChar()" title="Tap untuk rotasi karakter"></canvas>
+
+      <!-- Identity card overlay (kiri) — background tetap terlihat, tidak menimpa penuh -->
+      <div style="position:relative;z-index:1;display:flex;align-items:flex-start;height:100%;padding:12px;box-sizing:border-box;pointer-events:none;">
+        <div style="pointer-events:auto;width:60%;max-width:290px;background:rgba(10,10,15,.58);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);border:1px solid rgba(255,255,255,.16);padding:12px;border-radius:3px;">
+          <div style="font-family:'Archivo Black',sans-serif;font-weight:900;font-size:17px;color:var(--yellow);line-height:1.15;">${S.name||'User'}</div>
+          <div style="font-family:var(--font-mono, monospace);font-size:9px;color:rgba(255,255,255,.75);margin-bottom:8px;">Level ${lvl} · ${typeof LVL_NAMES!=='undefined'&&LVL_NAMES?LVL_NAMES[Math.min(lvl-1,LVL_NAMES.length-1)]:'Starter'}</div>
+
+          <div id="profile-id-row" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+            <span style="font-family:var(--font-mono, monospace);font-size:7px;color:rgba(255,255,255,.5);letter-spacing:1px;">ID</span>
+            <span id="profile-id-value" style="font-family:var(--font-mono, monospace);font-size:10px;color:#fff;letter-spacing:1px;">---</span>
+            <button id="profile-id-copy-btn" onclick="event.stopPropagation();" style="display:none;background:none;border:none;padding:2px;cursor:pointer;color:rgba(255,255,255,.85);" title="Salin ID">
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            </button>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;font-family:var(--font-mono, monospace);font-size:7px;color:rgba(255,255,255,.5);margin-bottom:3px;">
+            <span>XP</span><span>${xpInLevel}/100</span>
+          </div>
+          <div style="height:6px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);overflow:hidden;margin-bottom:10px;">
+            <div style="height:100%;width:${xpInLevel}%;background:var(--yellow);"></div>
+          </div>
+
+          <div style="font-family:var(--font-mono, monospace);font-size:6px;color:rgba(255,255,255,.45);letter-spacing:1px;margin-bottom:4px;">HABIT</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:9px;">
+            <div style="text-align:center;">
+              <div style="font-family:sans-serif;font-weight:900;font-size:13px;color:#fff;">${dailyCount}</div>
+              <div style="font-family:var(--font-mono, monospace);font-size:6px;color:rgba(255,255,255,.6);">DAILY</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-family:sans-serif;font-weight:900;font-size:13px;color:#fff;">${weeklyCount}</div>
+              <div style="font-family:var(--font-mono, monospace);font-size:6px;color:rgba(255,255,255,.6);">WEEKLY</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-family:sans-serif;font-weight:900;font-size:13px;color:#fff;">${monthlyCount}</div>
+              <div style="font-family:var(--font-mono, monospace);font-size:6px;color:rgba(255,255,255,.6);">MONTHLY</div>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid rgba(255,255,255,.15);">
+            <div><div style="font-family:sans-serif;font-weight:900;font-size:13px;color:var(--yellow);">🔥 ${bestStreak}</div><div style="font-family:var(--font-mono, monospace);font-size:6px;color:rgba(255,255,255,.6);">BEST STREAK</div></div>
+            <div style="text-align:right;"><div style="font-family:sans-serif;font-weight:900;font-size:13px;color:var(--yellow);">✅ ${activeHabits.length}</div><div style="font-family:var(--font-mono, monospace);font-size:6px;color:rgba(255,255,255,.6);">TOTAL HABIT</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="position:absolute;bottom:7px;right:9px;z-index:1;font-family:var(--font-mono, monospace);font-size:8px;color:rgba(255,255,255,.65);pointer-events:none;">↺ Tap karakter untuk rotasi</div>
+    </div>`;
+
+  // Draw full scene on profile canvas
+  setTimeout(() => {
+    const canvas = $('profile-char-canvas');
+    if(!canvas) return;
+    const W = canvas.width, H = canvas.height;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+
+    const bg = typeof getProfileBgConfig==='function' ? getProfileBgConfig() : {top:'#1a2d4a',bot:'#2d4a6a',grass:'#2d5a1a'};
+
+    // Sky gradient
+    const skyGrd = ctx.createLinearGradient(0,0,0,H*0.7);
+    skyGrd.addColorStop(0, bg.top); skyGrd.addColorStop(1, bg.bot);
+    ctx.fillStyle = skyGrd; ctx.fillRect(0,0,W,H);
+
+    // Stars
+    if(bg.top.startsWith('#0')||bg.top.startsWith('#05')||bg.top.startsWith('#0a')) {
+      ctx.fillStyle='rgba(255,255,255,.7)';
+      for(let s=0;s<50;s++) {
+        ctx.fillRect((s*137.508)%W, (s*73.1)%(H*0.55), 1.5, 1.5);
+      }
+    }
+
+    // Celestial body
+    const now2=new Date(); const h2=now2.getHours()+now2.getMinutes()/60;
+    const isDaytime=h2>=6&&h2<18;
+    if(isDaytime) {
+      const t=(h2-6)/12;
+      const cx=W*0.1+W*0.8*t, cy=H*0.35-Math.sin(Math.PI*t)*H*0.28;
+      const glow=ctx.createRadialGradient(cx,cy,0,cx,cy,W*0.08);
+      glow.addColorStop(0,'rgba(255,220,60,.4)'); glow.addColorStop(1,'transparent');
+      ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(cx,cy,W*0.08,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#ffd700'; ctx.beginPath(); ctx.arc(cx,cy,W*0.025,0,Math.PI*2); ctx.fill();
+    } else {
+      const tM=h2>=18?(h2-18)/12:(h2+6)/12;
+      const mx=W*0.1+W*0.8*tM, my=H*0.32-Math.sin(Math.PI*tM)*H*0.22;
+      ctx.fillStyle='#ccd5ff'; ctx.beginPath(); ctx.arc(mx,my,W*0.018,0,Math.PI*2); ctx.fill();
+    }
+
+    // Ground
+    const groundY = H*0.62;
+    const gndGrd=ctx.createLinearGradient(0,groundY,0,H);
+    gndGrd.addColorStop(0, bg.grass||'#2d5a1a'); gndGrd.addColorStop(1,'#1a3a0a');
+    ctx.fillStyle=gndGrd; ctx.fillRect(0,groundY,W,H-groundY);
+
+    // Grass tufts
+    ctx.fillStyle=bg.grass||'#2d5a1a';
+    for(let x=0;x<W;x+=6) {
+      const gh=4+Math.sin(x*0.5)*2;
+      ctx.fillRect(x,groundY-gh,3,gh+3);
+    }
+
+    // Decorative flowers/elements — hanya di sisi kanan agar tidak tertutup kartu identitas
+    const decors=['🌼','🌿','🌱'];
+    decors.forEach((d,i) => {
+      const dx = W*(0.63 + i*0.12);
+      ctx.font=`${W*0.035}px serif`; ctx.textAlign='center';
+      ctx.fillText(d, dx, groundY+3);
+    });
+
+    // Character — diposisikan di sisi kanan, kartu identitas ada di kiri
+    const charScale = Math.min(H / 380, 1.4); // max 1.4x
+    ctx.save();
+    ctx.translate(W*0.76, groundY - 5);
+    ctx.scale(charScale, charScale);
+    if(typeof drawChibiChar==='function') drawChibiChar(ctx, 0, 0, _profileFacing||1, 'idle', Math.floor(Date.now()/100), cfg);
+    ctx.restore();
+  }, 50);
+
+  // Customization sections — rendered separately in edit mode
+  renderProfileEdit();
+  renderProfileSocialSection();
+}
+
+function renderProfileEdit() {
+  const custEl = $('profile-customizer'); if(!custEl) return;
+  const cfg = getCharConfig();
+
+  custEl.innerHTML = `
+    <!-- Preview karakter (sticky di atas) -->
+    <div style="position:sticky;top:0;z-index:5;background:var(--bg);padding:9px 0 7px;border-bottom:2px solid var(--yellow);margin-bottom:11px;">
+      <canvas id="profile-edit-preview" width="280" height="140"
+        style="display:block;margin:0 auto;width:100%;max-width:280px;height:auto;"></canvas>
+    </div>
+
+    <!-- Kulit (terpisah) -->
+    <div class="sec-hdr" style="margin-top:4px;"><div class="sec-title">Warna Kulit</div></div>
+    <div style="margin-bottom:11px;">${renderColorPicker('skinColor','',cfg.skinColor)}</div>
+
+    <!-- Rambut -->
+    <div class="sec-hdr"><div class="sec-title">Rambut</div></div>
+    <div style="display:flex;gap:6px;margin-bottom:7px;">
+      ${['short','long','bun'].map(s=>`<button class="btn btn-sm${cfg.hairStyle===s?' btn-primary':''}"
+        onclick="setCharStyle('hairStyle','${s}')">${s==='short'?'Pendek':s==='long'?'Panjang':'Sanggul'}</button>`).join('')}
+    </div>
+    ${renderColorPicker('hairColor','Warna Rambut',cfg.hairColor)}
+
+    <!-- Baju -->
+    <div class="sec-hdr"><div class="sec-title">Baju</div></div>
+    ${renderColorPicker('shirtColor','Warna Baju',cfg.shirtColor)}
+
+    <!-- Celana -->
+    <div class="sec-hdr"><div class="sec-title">Celana</div></div>
+    ${renderColorPicker('pantsColor','Warna Celana',cfg.pantsColor)}
+
+    <!-- Sepatu -->
+    <div class="sec-hdr"><div class="sec-title">Sepatu</div></div>
+    ${renderColorPicker('shoeColor','Warna Sepatu',cfg.shoeColor)}
+
+    <!-- Aksesoris -->
+    <div class="sec-hdr"><div class="sec-title">Aksesoris</div></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px;">
+      ${['none','hat','glasses','scarf'].map(a=>`<button class="btn btn-sm${cfg.accessory===a?' btn-primary':''}"
+        onclick="setCharStyle('accessory','${a}')">${a==='none'?'Tidak ada':a==='hat'?'Topi':a==='glasses'?'Kacamata':'Syal'}</button>`).join('')}
+    </div>
+    ${cfg.accessory !== 'none' ? renderColorPicker('accColor','Warna Aksesoris',cfg.accColor) : ''}
+
+    <div style="padding-bottom:80px;"></div>
+    `;
+
+  // Draw preview
+  drawEditPreview();
+}
+
+function drawEditPreview() {
+  const canvas = $('profile-edit-preview'); if(!canvas) return;
+  const W = canvas.width, H = canvas.height;
+  const ctx = canvas.getContext('2d');
+  const cfg = getCharConfig();
+  const bg = typeof getProfileBgConfig==='function' ? getProfileBgConfig() : {top:'#1a2d4a',bot:'#2d4a6a',grass:'#2d5a1a'};
+
+  // Sky
+  const skyG = ctx.createLinearGradient(0,0,0,H);
+  skyG.addColorStop(0,bg.top); skyG.addColorStop(1,bg.bot);
+  ctx.fillStyle=skyG; ctx.fillRect(0,0,W,H);
+
+  // Ground
+  const gy = H*0.65;
+  ctx.fillStyle=bg.grass||'#2d5a1a'; ctx.fillRect(0,gy,W,H-gy);
+
+  // Char — centered, scaled
+  const scale = W / 140;
+  ctx.save();
+  ctx.translate(W/2, gy);
+  ctx.scale(scale, scale);
+  if(typeof drawChibiChar==='function') drawChibiChar(ctx, 0, 0, _profileFacing||1, 'idle', Math.floor(Date.now()/100), cfg);
+  ctx.restore();
+
+  // Label
+  ctx.fillStyle='rgba(255,204,0,0.9)';
+  ctx.font='bold 9px "IBM Plex Mono",monospace';
+  ctx.textAlign='center';
+  ctx.fillText('PREVIEW', W/2, H-4);
+}
+
+let _profileFacing = 1;
+let _profileRotInterval = null;
+
+function rotateProfileChar() {
+  _profileFacing *= -1;
+  renderProfilePage();
+}
+
+function renderColorPicker(key, label, currentVal) {
+  const colors = ['#3a2000','#f5c5a3','#d4a070','#c8855a','#5c3a1e','#4a90d9','#e83535','#2d4a8a','#4aaa55','#aa44aa','#f5a623','#1a1a1a','#ffffff','#888888'];
+  return `<div style="margin-bottom:7px;width:100%;">
+    <div style="font-family:var(--font-mono, monospace);font-size:7px;color:var(--sub);margin-bottom:4px;text-transform:uppercase;">${label}</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+      ${colors.map(c=>`<div onclick="setCharColor('${key}','${c}')"
+        style="width:22px;height:22px;background:${c};border:2px solid ${c===currentVal?'var(--yellow)':'var(--bc)'};cursor:pointer;"></div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function setCharColor(key, val) {
+  const cfg = getCharConfig(); cfg[key] = val; saveCharConfig(cfg);
+  // Update color picker highlights without full re-render
+  document.querySelectorAll(`[onclick*="setCharColor('${key}'"]`).forEach(el=>{
+    const elColor = el.getAttribute('onclick').match(/'([^']+)'\)$/)?.[1];
+    el.style.border = elColor===val ? '2px solid var(--text)' : '2px solid var(--bc)';
+  });
+  drawEditPreview();
+  renderProfilePage();
+  renderHomeAvatar();
+}
+function setCharStyle(key, val) {
+  const cfg = getCharConfig(); cfg[key] = val; saveCharConfig(cfg);
+  renderProfileEdit();
+  renderProfilePage();
+  renderHomeAvatar();
+}
+
+function getProfileBgConfig() {
+  try {
+    const r = localStorage.getItem('oht_profile_bg');
+    return r ? JSON.parse(r) : {id:'default', top:'#1a2d4a', bot:'#2d4a6a', grass:'#2d5a1a'};
+  } catch(e) { return {id:'default', top:'#1a2d4a', bot:'#2d4a6a', grass:'#2d5a1a'}; }
+}
+
+// ════════════════════════════════════════════════════════════
+// PROFILE PHOTO (header avatar upload)
+// ════════════════════════════════════════════════════════════
+function getProfilePhoto() {
+  try { return localStorage.getItem('oht_profile_photo') || null; } catch(e) { return null; }
+}
+function onProfilePhotoSelected(evt) {
+  const file = evt.target.files && evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => openPhotoCrop(img);
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+  evt.target.value = '';
+}
+function removeProfilePhoto() {
+  try { localStorage.removeItem('oht_profile_photo'); } catch(e){}
+  applyProfilePhoto();
+}
+
+// ════════════════════════════════════════════════════════════
+// PROFILE PHOTO CROP/POSITION MODAL
+// ════════════════════════════════════════════════════════════
+let _cropImg = null;       // Image object being cropped
+let _cropVP = 230;         // viewport size (px), matches CSS
+let _cropMinScale = 1;
+let _cropScale = 1;
+let _cropOffX = 0;
+let _cropOffY = 0;
+let _cropDragging = false;
+let _cropDragStart = null;
+
+function openPhotoCrop(img) {
+  _cropImg = img;
+  _cropVP = 230;
+  _cropMinScale = _cropVP / Math.min(img.width, img.height);
+  _cropScale = _cropMinScale;
+  const dispW = img.width * _cropScale, dispH = img.height * _cropScale;
+  _cropOffX = (_cropVP - dispW) / 2;
+  _cropOffY = (_cropVP - dispH) / 2;
+
+  const imgEl = $('photo-crop-img');
+  imgEl.src = img.src;
+  const zoom = $('photo-crop-zoom'); if (zoom) zoom.value = 100;
+  applyCropTransform();
+  setupCropDrag();
+  openModal('modal-photo-crop');
+}
+
+function applyCropTransform() {
+  const imgEl = $('photo-crop-img'); if (!imgEl) return;
+  imgEl.style.width = (_cropImg.width * _cropScale) + 'px';
+  imgEl.style.height = (_cropImg.height * _cropScale) + 'px';
+  imgEl.style.transform = `translate(${_cropOffX}px, ${_cropOffY}px)`;
+}
+
+function clampCropOffsets() {
+  const dispW = _cropImg.width * _cropScale, dispH = _cropImg.height * _cropScale;
+  const minX = Math.min(0, _cropVP - dispW), maxX = 0;
+  const minY = Math.min(0, _cropVP - dispH), maxY = 0;
+  _cropOffX = Math.max(minX, Math.min(maxX, _cropOffX));
+  _cropOffY = Math.max(minY, Math.min(maxY, _cropOffY));
+}
+
+function onPhotoCropZoom(val) {
+  if (!_cropImg) return;
+  const oldScale = _cropScale;
+  _cropScale = _cropMinScale * (parseFloat(val) / 100);
+  // Keep the viewport center focused on the same image point while zooming
+  const cx = _cropVP / 2, cy = _cropVP / 2;
+  const relX = (cx - _cropOffX) / oldScale, relY = (cy - _cropOffY) / oldScale;
+  _cropOffX = cx - relX * _cropScale;
+  _cropOffY = cy - relY * _cropScale;
+  clampCropOffsets();
+  applyCropTransform();
+}
+
+function setupCropDrag() {
+  const vp = $('photo-crop-viewport'); if (!vp || vp._cropBound) return;
+  vp._cropBound = true;
+  const start = (x, y) => { _cropDragging = true; _cropDragStart = {x, y, offX:_cropOffX, offY:_cropOffY}; vp.style.cursor = 'grabbing'; };
+  const move = (x, y) => {
+    if (!_cropDragging || !_cropDragStart) return;
+    _cropOffX = _cropDragStart.offX + (x - _cropDragStart.x);
+    _cropOffY = _cropDragStart.offY + (y - _cropDragStart.y);
+    clampCropOffsets();
+    applyCropTransform();
+  };
+  const end = () => { _cropDragging = false; _cropDragStart = null; vp.style.cursor = 'grab'; };
+  vp.addEventListener('pointerdown', e => { vp.setPointerCapture(e.pointerId); start(e.clientX, e.clientY); });
+  vp.addEventListener('pointermove', e => move(e.clientX, e.clientY));
+  vp.addEventListener('pointerup', end);
+  vp.addEventListener('pointercancel', end);
+}
+
+function cancelPhotoCrop() {
+  closeModal('modal-photo-crop');
+  _cropImg = null;
+}
+
+function confirmPhotoCrop() {
+  if (!_cropImg) { closeModal('modal-photo-crop'); return; }
+  const SIZE = 256;
+  const c = document.createElement('canvas'); c.width = SIZE; c.height = SIZE;
+  const ctx = c.getContext('2d');
+  const srcX = -_cropOffX / _cropScale;
+  const srcY = -_cropOffY / _cropScale;
+  const srcSize = _cropVP / _cropScale;
+  ctx.drawImage(_cropImg, srcX, srcY, srcSize, srcSize, 0, 0, SIZE, SIZE);
+  const dataUrl = c.toDataURL('image/jpeg', 0.88);
+  try { localStorage.setItem('oht_profile_photo', dataUrl); } catch(e) { toast('Gagal menyimpan foto (terlalu besar)','error'); return; }
+  applyProfilePhoto();
+  closeModal('modal-photo-crop');
+  _cropImg = null;
+  toast('📸 Foto profil diperbarui!','success');
+}
+function applyProfilePhoto() {
+  const photo = getProfilePhoto();
+  const img = $('hdr-avatar-photo');
+  const canvas = $('xp-avatar-canvas');
+  if (photo) {
+    if (img) { img.src = photo; img.style.display = 'block'; }
+    if (canvas) canvas.style.display = 'none';
+  } else {
+    if (img) { img.style.display = 'none'; img.src = ''; }
+    if (canvas) canvas.style.display = 'block';
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// MINI AVATAR di HEADER (canvas xp-avatar)
+// ════════════════════════════════════════════════════════════
+function renderHomeAvatar() {
+  applyProfilePhoto();
+  const canvas = $('xp-avatar-canvas'); if(!canvas) return;
+  const W = canvas.width, H = canvas.height;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  if(typeof drawChibiChar !== 'function' || typeof getCharConfig !== 'function') return;
+  const cfg = getCharConfig();
+  const bg  = typeof getProfileBgConfig === 'function' ? getProfileBgConfig() : {top:'#1a2d4a',bot:'#2d4a6a'};
+
+  // Save clean state, clip to circle
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(W/2, H/2, W/2-1, 0, Math.PI*2);
+  ctx.clip();
+
+  // Sky gradient
+  const grd = ctx.createLinearGradient(0,0,0,H);
+  grd.addColorStop(0, bg.top || '#1a2d4a');
+  grd.addColorStop(1, bg.bot || '#2d4a6a');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0,0,W,H);
+
+  // Grass strip
+  ctx.fillStyle = bg.grass || '#2d5a1a';
+  ctx.fillRect(0, H*0.65, W, H*0.35);
+
+  // Draw char — positioned at center-bottom of circle
+  const scale = W / 100;
+  ctx.save();
+  ctx.translate(W/2, H*0.82);
+  ctx.scale(scale, scale);
+  drawChibiChar(ctx, 0, 0, 1, 'idle', 0, cfg);
+  ctx.restore();
+
+  ctx.restore(); // end clip
+
+  // Yellow border
+  ctx.strokeStyle = '#FFE600';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(W/2, H/2, W/2-1.5, 0, Math.PI*2);
+  ctx.stroke();
+}
+
+// Hook renderHomeAvatar ke renderStats
+// renderHomeAvatar hook merged into renderStats directly
+
+// ════════════════════════════════════════════════════════════
+// JADWAL & PENGINGAT SYSTEM
+// ════════════════════════════════════════════════════════════
+
+function getJadwalData() {
+  try { const r=localStorage.getItem('oht_jadwal'); return r?JSON.parse(r):[]; } catch(e){return [];}
+}
+function saveJadwalData(d) { try{localStorage.setItem('oht_jadwal',JSON.stringify(d));}catch(e){} }
+
+let _jadwalEditId = null;
+let _jadwalTimes = ['08:00'];
+const JADWAL_COLORS = ['#FFE600','#FF6B00','#FF3CAC','#00F5D4','#AAFF00','#9B5DE5','#4af','#e83','#fff'];
+
+function initJadwalPage() {
+  _jadwalEditId = null;
+  renderJadwalList();
+  requestNotifPermission();
+  scheduleAllJadwal();
+}
+
+function requestNotifPermission() {
+  if('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().then(p => {
+      if(p === 'granted') toast('✅ Notifikasi diaktifkan!','success');
+    });
+  }
+}
+
+function renderJadwalList() {
+  const el = $('jadwal-list'); if(!el) return;
+  const jadwals = getJadwalData();
+  if(!jadwals.length) {
+    el.innerHTML = `<div style="font-family:var(--font-mono, monospace);font-size:9px;color:var(--sub);text-align:center;padding:24px;">
+      Belum ada jadwal. Tap + TAMBAH untuk mulai.
+    </div>`; return;
+  }
+
+  el.innerHTML = jadwals.map(j => {
+    const dayNames=['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+    const activeDays = (j.days||[0,1,2,3,4,5,6]).map(d=>dayNames[d]).join(' ');
+    const jic = (j.emoji && JADWAL_ICONS[j.emoji]) ? j.emoji : 'target';
+    return `<div class="jadwal-card" style="border-left:3px solid ${j.color||'var(--yellow)'};">
+      <div class="jadwal-card-main">
+        <div class="jadwal-emoji">${jadwalIconSvg(jic)}</div>
+        <div class="jadwal-info">
+          <div class="jadwal-name" style="color:${j.color||'var(--yellow)'};">${j.name}</div>
+          <div class="jadwal-times">${(j.times||[]).map(t=>`<span class="jadwal-time-chip">⏰ ${t}</span>`).join('')}</div>
+          <div class="jadwal-days">${activeDays}</div>
+        </div>
+        <div class="jadwal-actions">
+          <button class="btn btn-xs" onclick="editJadwal('${j.id}')">✏️</button>
+          <button class="btn btn-xs btn-danger" onclick="deleteJadwal('${j.id}')">🗑️</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openAddJadwalModal() {
+  _jadwalEditId = null;
+  _jadwalTimes = ['08:00'];
+  const nameEl=$('jadwal-inp-name'); if(nameEl) nameEl.value='';
+  $('jadwal-modal-title').textContent='TAMBAH JADWAL';
+  $('jadwal-inp-emoji').value='water';
+  $('jadwal-inp-color').value='#FFE600';
+  // Reset emoji picker
+  buildJadwalEmojiPicker();
+  buildJadwalColorPicker();
+  buildJadwalTimesList();
+  // Reset days — tidak ada yang aktif secara default
+  document.querySelectorAll('#jadwal-days-picker .jhb-btn').forEach(b=>b.classList.remove('sel'));
+  openModal('modal-jadwal');
+}
+
+function editJadwal(id) {
+  const j = getJadwalData().find(x=>x.id===id); if(!j) return;
+  _jadwalEditId = id;
+  _jadwalTimes = [...(j.times||['08:00'])];
+  $('jadwal-modal-title').textContent='EDIT JADWAL';
+  const nameEl=$('jadwal-inp-name'); if(nameEl) nameEl.value=j.name;
+  $('jadwal-inp-emoji').value=(j.emoji&&JADWAL_ICONS[j.emoji])?j.emoji:'water';
+  $('jadwal-inp-color').value=j.color||'#FFE600';
+  buildJadwalEmojiPicker(j.emoji);
+  buildJadwalColorPicker(j.color);
+  buildJadwalTimesList();
+  // Days
+  const days=j.days||[0,1,2,3,4,5,6];
+  document.querySelectorAll('#jadwal-days-picker .jhb-btn').forEach(b=>{
+    const d=parseInt(b.dataset.day);
+    b.classList.toggle('sel',days.includes(d));
+  });
+  openModal('modal-jadwal');
+}
+
+const JADWAL_ICONS = {
+  water:  `<svg viewBox="0 0 24 24" width="22" height="22"><path fill="#2196F3" d="M12 2C8.5 7 5 11 5 15a7 7 0 0014 0c0-4-3.5-8-7-13z"/><path fill="#8ECBFA" d="M8.7 15.5a3.3 3.3 0 003.3 3.3c.55 0 1-.45 1-1s-.45-1-1-1a1.3 1.3 0 01-1.3-1.3c0-.55-.45-1-1-1s-1 .45-1 1z"/></svg>`,
+  target: `<svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="9" fill="#FF3B30"/><circle cx="12" cy="12" r="6" fill="#fff"/><circle cx="12" cy="12" r="3.2" fill="#FF3B30"/></svg>`,
+  book:   `<svg viewBox="0 0 24 24" width="22" height="22"><path fill="#3B6FE0" d="M4 4.5A2.5 2.5 0 016.5 2H20v18H6.5A2.5 2.5 0 004 17.5v-13z"/><path fill="#EAF1FF" d="M6.5 2H20v16H6.5A2.5 2.5 0 004 15.5V4.5A2.5 2.5 0 016.5 2z"/><rect x="7" y="6" width="9" height="1.4" fill="#3B6FE0"/><rect x="7" y="9" width="9" height="1.4" fill="#3B6FE0"/></svg>`,
+  dumbbell:`<svg viewBox="0 0 24 24" width="22" height="22"><rect x="2" y="9" width="3" height="6" rx="1" fill="#444"/><rect x="19" y="9" width="3" height="6" rx="1" fill="#444"/><rect x="5" y="10.5" width="14" height="3" fill="#FF6B00"/><rect x="6.5" y="7.5" width="2.2" height="9" fill="#444"/><rect x="15.3" y="7.5" width="2.2" height="9" fill="#444"/></svg>`,
+  sleep:  `<svg viewBox="0 0 24 24" width="22" height="22"><path fill="#7B61FF" d="M20 14.5A8.5 8.5 0 019.5 4 8.5 8.5 0 1020 14.5z"/><circle cx="17" cy="6" r="1" fill="#fff"/><circle cx="14" cy="9" r=".7" fill="#fff"/></svg>`,
+  apple:  `<svg viewBox="0 0 24 24" width="22" height="22"><path fill="#4CAF50" d="M12.5 6c.4-1.7 2-2.8 2-2.8s.2 1.8-1 3c1.6.2 3.5 1.6 3.5 4.6 0 4-2.6 8.7-5.5 8.7-1 0-1.5-.5-2.5-.5s-1.6.5-2.5.5C4 19.5 2 15.4 2 11.6c0-3.4 2.2-5 4-5 1 0 1.8.6 2.5.6.6 0 1.6-.7 2.5-.9-.1-.5-.2-1-.1-1.6C11.4 4.2 12.1 5 12.5 6z"/><path fill="#8B5A2B" d="M12 3.2c.9-.3 1.6-.1 1.6-.1s-.1.9-1 1.4c-.6.3-1 .1-1 .1s0-1 .4-1.4z"/></svg>`,
+  yoga:   `<svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="5" r="2.3" fill="#00BFA5"/><path fill="#26C6DA" d="M12 8c-3 0-5 2.4-5 5.2 0 1.6 1 2.8 2.3 2.8.6 0 1-.3 1.3-.8l1-1.7 1 1.7c.3.5.7.8 1.3.8 1.3 0 2.3-1.2 2.3-2.8C17 10.4 15 8 12 8z"/><path fill="#00897B" d="M9.5 16.5L7 20h3l2-3.5 2 3.5h3l-2.5-3.5"/></svg>`,
+  pill:   `<svg viewBox="0 0 24 24" width="22" height="22"><rect x="2" y="9" width="20" height="6" rx="3" fill="#EF5350" transform="rotate(-35 12 12)"/><path fill="#fff" d="M12 12l6.5-4.5a3 3 0 114 4.4L15.9 16 12 12z" transform="rotate(-35 12 12)"/></svg>`,
+  run:    `<svg viewBox="0 0 24 24" width="22" height="22"><path fill="#FF6B00" d="M4 19l4.5-2 2-3-1.5-2.5L6 13l-1-1.5 4-2.5 3 1 3.5-1.5-.7-2L18 5l1 2-4 2 2.5 6 3.5 1-.7 2-4.3-1.3-2-4-2 3-4 2.5z"/><circle cx="15" cy="4" r="1.6" fill="#FF6B00"/></svg>`,
+  work:   `<svg viewBox="0 0 24 24" width="22" height="22"><rect x="2" y="7" width="20" height="13" rx="1.5" fill="#8B5A2B"/><rect x="2" y="7" width="20" height="4" fill="#6D4520"/><rect x="9" y="4" width="6" height="4" rx="1" fill="none" stroke="#6D4520" stroke-width="1.6"/></svg>`,
+  note:   `<svg viewBox="0 0 24 24" width="22" height="22"><rect x="4" y="2" width="14" height="18" rx="1" fill="#FFF3C4"/><path fill="#FFC107" d="M15 15l6-6 2 2-6 6-2.5.5.5-2.5z"/><rect x="6.5" y="6" width="8" height="1.3" fill="#E0B84C"/><rect x="6.5" y="9" width="6" height="1.3" fill="#E0B84C"/></svg>`,
+  music:  `<svg viewBox="0 0 24 24" width="22" height="22"><path fill="#7B2FBE" d="M9 17a3 3 0 11-2-2.8V5.8l10-2v9.5a3 3 0 11-2-2.8V6l-6 1.2z"/></svg>`,
+  plant:  `<svg viewBox="0 0 24 24" width="22" height="22"><path fill="#4CAF50" d="M12 21V10"/><path fill="#4CAF50" stroke="#4CAF50" stroke-width="2" d="M12 21V10"/><path fill="#66BB6A" d="M12 12c0-4-3-6-7-6 0 4 3 7 7 6z"/><path fill="#2E7D32" d="M12 10c0-4 3-7 7-7 0 4.5-3 7.5-7 7z"/></svg>`,
+  coffee: `<svg viewBox="0 0 24 24" width="22" height="22"><path fill="#8B5A2B" d="M3 9h14v6a4 4 0 01-4 4H7a4 4 0 01-4-4V9z"/><path fill="none" stroke="#8B5A2B" stroke-width="2" d="M17 10.5h1.5a2.5 2.5 0 010 5H17"/><path fill="none" stroke="#C9A882" stroke-width="1.5" stroke-linecap="round" d="M7 3.5c0 1.2 1.5 1.2 1.5 2.5S7 7.3 7 8.5M11 3.5c0 1.2 1.5 1.2 1.5 2.5S11 7.3 11 8.5"/></svg>`,
+  weight: `<svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="14" r="7" fill="#555"/><rect x="10" y="2" width="4" height="5" rx="1.5" fill="#777"/><circle cx="12" cy="14" r="2.5" fill="#333"/></svg>`,
+  palette:`<svg viewBox="0 0 24 24" width="22" height="22"><path fill="#F4A9C0" d="M12 2C6.5 2 2 6 2 11c0 3.3 2.2 5 4.5 5H8a1.5 1.5 0 011.5 1.5c0 1-.7 1.3-.7 2.3 0 .9 1 1.2 2 1.2 5.5 0 9.2-4 9.2-9C22 6.6 17.5 2 12 2z"/><circle cx="7" cy="10" r="1.4" fill="#E53935"/><circle cx="11" cy="7" r="1.4" fill="#1E88E5"/><circle cx="16" cy="8.5" r="1.4" fill="#FDD835"/><circle cx="17" cy="13" r="1.4" fill="#43A047"/></svg>`,
+  shower: `<svg viewBox="0 0 24 24" width="22" height="22"><path fill="#78909C" d="M4 9a7 7 0 0113.9-1H19a2 2 0 010 4H5a2 2 0 01-1-3.7V9z"/><g fill="#2196F3"><circle cx="6" cy="15" r="1"/><circle cx="10" cy="16" r="1"/><circle cx="14" cy="15" r="1"/><circle cx="18" cy="16" r="1"/><circle cx="8" cy="19" r="1"/><circle cx="12" cy="20" r="1"/><circle cx="16" cy="19" r="1"/></g></svg>`,
+  tea:    `<svg viewBox="0 0 24 24" width="22" height="22"><path fill="#00897B" d="M3 9h14v6a4 4 0 01-4 4H7a4 4 0 01-4-4V9z"/><path fill="none" stroke="#00897B" stroke-width="2" d="M17 10.5h1.5a2.5 2.5 0 010 5H17"/><path fill="#B2DFDB" d="M5 9h10v2H5z"/></svg>`
+};
+const JADWAL_ICON_KEYS = Object.keys(JADWAL_ICONS);
+function jadwalIconSvg(key){ return JADWAL_ICONS[key] || JADWAL_ICONS.target; }
+
+function buildJadwalEmojiPicker(selected) {
+  const container=$('jadwal-emoji-picker'); if(!container) return;
+  const cur=selected || $('jadwal-inp-emoji')?.value || 'water';
+  container.innerHTML=JADWAL_ICON_KEYS.map(k=>`<div onclick="selectJadwalEmoji('${k}')"
+    style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;cursor:pointer;padding:3px;border:2px solid ${k===cur?'var(--yellow)':'transparent'};background:var(--surface);
+    -webkit-tap-highlight-color:transparent;">${jadwalIconSvg(k)}</div>`).join('');
+}
+
+function selectJadwalEmoji(k) {
+  const el=$('jadwal-inp-emoji'); if(el) el.value=k;
+  buildJadwalEmojiPicker(k);
+}
+
+function buildJadwalColorPicker(selected='#FFE600') {
+  const container=$('jadwal-color-picker'); if(!container) return;
+  const cur=$('jadwal-inp-color')?.value||'#FFE600';
+  container.innerHTML=JADWAL_COLORS.map(c=>`<div onclick="selectJadwalColor('${c}')"
+    style="width:26px;height:26px;background:${c};border:2px solid ${c===cur?'var(--text)':'var(--bc)'};cursor:pointer;"></div>`).join('');
+}
+
+function selectJadwalColor(c) {
+  const el=$('jadwal-inp-color'); if(el) el.value=c;
+  buildJadwalColorPicker(c);
+}
+
+function buildJadwalTimesList() {
+  const container=$('jadwal-times-list'); if(!container) return;
+  container.innerHTML=_jadwalTimes.map((t,i)=>`
+    <div style="display:flex;align-items:center;gap:7px;">
+      <div class="custom-time-trigger" style="flex:1;" onclick="openTimePicker('jadwal-time-${i}')">
+        <span class="ctt-ico">⏰</span><span class="ctt-val" id="jadwal-time-val-${i}">${t||'--:--'}</span>
+      </div>
+      ${_jadwalTimes.length>1?`<button class="btn btn-xs btn-danger" onclick="removeJadwalTime(${i})">✕</button>`:''}
+    </div>`).join('');
+}
+
+function addJadwalTimeSlot() {
+  _jadwalTimes.push('12:00');
+  buildJadwalTimesList();
+}
+
+function updateJadwalTime(idx, val) { _jadwalTimes[idx]=val; }
+
+function removeJadwalTime(idx) {
+  _jadwalTimes.splice(idx,1);
+  buildJadwalTimesList();
+}
+
+function saveJadwal() {
+  const name=($('jadwal-inp-name')?.value||'').trim();
+  if(!name){toast('Isi nama jadwal!','error');return;}
+  const emoji=$('jadwal-inp-emoji')?.value||'target';
+  const color=$('jadwal-inp-color')?.value||'#FFE600';
+  const days=[...document.querySelectorAll('#jadwal-days-picker .jhb-btn.sel')].map(b=>parseInt(b.dataset.day));
+  if(!days.length){toast('Pilih minimal 1 hari!','error');return;}
+  const times=_jadwalTimes.filter(Boolean);
+  if(!times.length){toast('Tambah minimal 1 waktu!','error');return;}
+
+  const jadwals=getJadwalData();
+  if(_jadwalEditId) {
+    const idx=jadwals.findIndex(j=>j.id===_jadwalEditId);
+    if(idx>=0) jadwals[idx]={...jadwals[idx],name,emoji,color,times,days};
+  } else {
+    jadwals.push({id:'j'+Date.now(),name,emoji,color,times,days,createdAt:Date.now()});
+  }
+  saveJadwalData(jadwals);
+  scheduleAllJadwal();
+  closeModal('modal-jadwal');
+  renderJadwalList();
+  toast(`✅ Jadwal "${name}" disimpan!`,'success');
+}
+
+function deleteJadwal(id) {
+  if(!confirm('Hapus jadwal ini?')) return;
+  const jadwals=getJadwalData().filter(j=>j.id!==id);
+  saveJadwalData(jadwals);
+  renderJadwalList();
+  toast('Jadwal dihapus','info');
+}
+
+// ── Notification scheduler ──────────────────────────────
+let _jadwalTimers=[];
+
+function scheduleAllJadwal() {
+  // Clear existing timers
+  _jadwalTimers.forEach(t=>clearTimeout(t));
+  _jadwalTimers=[];
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  const jadwals=getJadwalData();
+  const now=new Date();
+  const todayDay=now.getDay();
+
+  jadwals.forEach(j=>{
+    if(!(j.days||[0,1,2,3,4,5,6]).includes(todayDay)) return;
+    (j.times||[]).forEach(timeStr=>{
+      const [hh,mm]=timeStr.split(':').map(Number);
+      const target=new Date(now); target.setHours(hh,mm,0,0);
+      const ms=target-now;
+      if(ms>0 && ms<86400000) { // within next 24h
+        const timer=setTimeout(()=>{
+          new Notification(`${j.emoji} ${j.name}`, {
+            body:`Waktunya: ${timeStr}`,
+            icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="%23FFE600"/><text y="24" font-size="22" x="4">🔔</text></svg>'
+          });
+          // Reschedule for next day
+          scheduleJadwalNext(j, timeStr);
+        }, ms);
+        _jadwalTimers.push(timer);
+      }
+    });
+  });
+}
+
+function scheduleJadwalNext(j, timeStr) {
+  // Schedule for same time tomorrow if day matches
+  const [hh,mm]=timeStr.split(':').map(Number);
+  const tomorrow=new Date(); tomorrow.setDate(tomorrow.getDate()+1); tomorrow.setHours(hh,mm,0,0);
+  const tomorrowDay=tomorrow.getDay();
+  if((j.days||[0,1,2,3,4,5,6]).includes(tomorrowDay)) {
+    const ms=tomorrow-new Date();
+    const timer=setTimeout(()=>{
+      new Notification(`${j.emoji} ${j.name}`, {body:`Waktunya: ${timeStr}`});
+      scheduleJadwalNext(j, timeStr);
+    }, ms);
+    _jadwalTimers.push(timer);
+  }
+}
+
+// Schedule on app init
+setTimeout(scheduleAllJadwal, 2000);
+
+// ════════════════════════════════════════════════════════════
+// FIREBASE — Friends & Chat System
+// ════════════════════════════════════════════════════════════
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCUSfLU3VCsCOhj1UAO8CFkHwsfWbk16RM",
+  authDomain: "oriashabittracker.firebaseapp.com",
+  projectId: "oriashabittracker",
+  storageBucket: "oriashabittracker.firebasestorage.app",
+  messagingSenderId: "115962126068",
+  appId: "1:115962126068:web:7934d7e91a66645e5048a1",
+  measurementId: "G-76M1KP4SQ3",
+  databaseURL: "https://oriashabittracker-default-rtdb.asia-southeast1.firebasedatabase.app"
+};
+
+let _fbApp = null, _fbAuth = null, _fbDb = null;
+let _fbUser = null;         // current Firebase user
+let _fbProfile = null;      // { username, xp, level, charConfig }
+let _chatFriendId = null;   // username sedang dichat
+let _chatListener = null;   // Firebase listener aktif
+let _friendsListener = null;
+
+function initFirebase() {
+  if(_fbApp) return;
+  try {
+    _fbApp  = firebase.initializeApp(FIREBASE_CONFIG);
+    _fbAuth = firebase.auth();
+    _fbDb   = firebase.database();
+    _fbAuth.onAuthStateChanged(fbOnAuthChanged);
+    console.log('[Firebase] initialized');
+  } catch(e) {
+    console.error('[Firebase] init error:', e);
+  }
+}
+
+function fbOnAuthChanged(user) {
+  _fbUser = user;
+  if(!user) {
+    _fbProfile = null;
+    renderFriendsLogin();
+    renderSettingsAuth();
+    return;
+  }
+
+  _fbDb.ref('users/' + user.uid).once('value').then(snap => {
+    _fbProfile = snap.val();
+
+    if(!_fbProfile) {
+      // User baru — buat profil dengan ID 6 digit
+      let rawName = (user.displayName || user.email || 'user').split('@')[0];
+      let baseUsername = rawName.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,15) || 'user';
+      const numId = generateNumericId();
+
+      const createProfile = (uname) => {
+        _fbDb.ref('usernames/' + uname).once('value').then(usnap => {
+          if(usnap.exists()) {
+            createProfile(uname + String(Math.floor(Math.random()*99)));
+          } else {
+            _fbProfile = {
+              username: uname,
+              displayName: user.displayName || uname,
+              uid: user.uid,
+              numId: numId,
+              xp: S.xp||0,
+              level: Math.max(1, Math.floor((S.xp||0)/100)+1)
+            };
+            _fbDb.ref('users/' + user.uid).set(_fbProfile);
+            _fbDb.ref('usernames/' + uname).set(user.uid);
+            _fbDb.ref('numIds/' + numId).set(user.uid);
+            _afterFbLogin();
+          }
+        });
+      };
+      createProfile(baseUsername);
+      return;
+    }
+
+    // User lama — pastikan punya numId
+    if(!_fbProfile.numId) {
+      const numId = generateNumericId();
+      _fbProfile.numId = numId;
+      _fbDb.ref('users/' + user.uid + '/numId').set(numId);
+      _fbDb.ref('numIds/' + numId).set(user.uid);
+    }
+    _afterFbLogin();
+  });
+}
+
+function _afterFbLogin() {
+  if(!_fbUser || !_fbProfile) return;
+  // Online presence
+  const presRef = _fbDb.ref('presence/' + _fbProfile.username);
+  presRef.set({ online: true, lastSeen: firebase.database.ServerValue.TIMESTAMP });
+  presRef.onDisconnect().set({ online: false, lastSeen: firebase.database.ServerValue.TIMESTAMP });
+  // Sync XP
+  _fbDb.ref('users/' + _fbUser.uid + '/xp').set(S.xp||0);
+  _fbDb.ref('users/' + _fbUser.uid + '/level').set(Math.max(1,Math.floor((S.xp||0)/100)+1));
+  // Render semua
+  renderFriendsMain();
+  renderSettingsAuth();
+  renderProfileSocialSection();
+  const lm=$('auth-page');if(lm&&lm.classList.contains('open'))closeAuthPage();
+}
+
+// ── Auth Page (standalone, bukan modal) ──────────────────────
+let _authPageMode = 'login';
+function showAuthPage() {
+  setAuthMode('login');
+  const el = $('auth-page'); if (el) el.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  _authFormRevealed = false;
+  const card = $('auth-card'); if (card) card.classList.remove('show');
+  startAuthShowcase();
+}
+function closeAuthPage() {
+  const el = $('auth-page'); if (el) el.classList.remove('open');
+  document.body.style.overflow = '';
+  stopAuthShowcase();
+}
+function setAuthMode(mode) {
+  _authPageMode = mode;
+  const tl = $('auth-tab2-login'), tr = $('auth-tab2-register');
+  if (tl) tl.classList.toggle('active', mode === 'login');
+  if (tr) tr.classList.toggle('active', mode === 'register');
+  const btn = $('auth2-submit-btn');
+  if (btn) btn.textContent = mode === 'login' ? 'MASUK' : 'DAFTAR';
+  const err = $('fb-auth-error'); if (err) err.textContent = '';
+}
+function authSubmit2() {
+  if (_authPageMode === 'register') fbRegister(); else fbLogin();
+}
+
+// ── Auth showcase: "Selamat datang" mengetik → logo terbentuk → judul & subjudul mengetik, loop ──
+// Form login baru muncul & menetap setelah siklus pertama kelar.
+let _authShowcaseTimer = null;
+let _authShowcaseRunning = false;
+let _authFormRevealed = false;
+const AUTH_WELCOME_TEXT = 'Selamat datang';
+const AUTH_TITLE_TEXT = 'OHT';
+const AUTH_SUB_TEXT = 'Orias Habit Tracker';
+
+function startAuthShowcase() {
+  if (_authShowcaseRunning) return;
+  _authShowcaseRunning = true;
+  runAuthShowcaseCycle();
+}
+function stopAuthShowcase() {
+  _authShowcaseRunning = false;
+  if (_authShowcaseTimer) { clearTimeout(_authShowcaseTimer); _authShowcaseTimer = null; }
+}
+function _authTypeInto(el, text, speed, cb) {
+  let i = 0;
+  el.textContent = '';
+  const wrap = el.parentElement;
+  if (wrap) wrap.classList.add('typing');
+  (function step() {
+    if (!_authShowcaseRunning) return;
+    if (i <= text.length) {
+      el.textContent = text.slice(0, i);
+      i++;
+      _authShowcaseTimer = setTimeout(step, speed);
+    } else {
+      if (wrap) wrap.classList.remove('typing');
+      if (cb) cb();
+    }
+  })();
+}
+function _authDeleteFrom(el, text, speed, cb) {
+  let i = text.length;
+  const wrap = el.parentElement;
+  if (wrap) wrap.classList.add('typing');
+  (function step() {
+    if (!_authShowcaseRunning) return;
+    if (i >= 0) {
+      el.textContent = text.slice(0, i);
+      i--;
+      _authShowcaseTimer = setTimeout(step, speed);
+    } else {
+      if (wrap) wrap.classList.remove('typing');
+      if (cb) cb();
+    }
+  })();
+}
+function _authRevealFormOnce() {
+  if (_authFormRevealed) return;
+  _authFormRevealed = true;
+  const card = $('auth-card'); if (card) card.classList.add('show');
+}
+function runAuthShowcaseCycle() {
+  if (!_authShowcaseRunning) return;
+  const twEl = $('auth-typewriter-text');
+  const logoEl = $('auth-showcase-logo');
+  const titleEl = $('auth-showcase-title-text');
+  const subEl = $('auth-showcase-sub-text');
+  if (!twEl || !logoEl || !titleEl || !subEl) return;
+
+  logoEl.classList.remove('show');
+  twEl.textContent = ''; titleEl.textContent = ''; subEl.textContent = '';
+
+  // 1) "Selamat datang" mengetik
+  _authTypeInto(twEl, AUTH_WELCOME_TEXT, 75, () => {
+    _authShowcaseTimer = setTimeout(() => {
+      // 2) "Selamat datang" terhapus (efek ketik mundur)
+      _authDeleteFrom(twEl, AUTH_WELCOME_TEXT, 40, () => {
+        _authShowcaseTimer = setTimeout(() => {
+          // 3) Logo/icon terbentuk penuh dari nol
+          logoEl.classList.add('show');
+          _authShowcaseTimer = setTimeout(() => {
+            // 4) Judul "OHT" mengetik
+            _authTypeInto(titleEl, AUTH_TITLE_TEXT, 130, () => {
+              _authShowcaseTimer = setTimeout(() => {
+                // 5) Subjudul mengetik
+                _authTypeInto(subEl, AUTH_SUB_TEXT, 45, () => {
+                  // Form login muncul & menetap (hanya kali pertama)
+                  _authRevealFormOnce();
+                  _authShowcaseTimer = setTimeout(() => {
+                    // 6) Logo memudar, judul & subjudul terhapus ketik-mundur, lalu loop
+                    logoEl.classList.remove('show');
+                    _authShowcaseTimer = setTimeout(() => {
+                      _authDeleteFrom(subEl, AUTH_SUB_TEXT, 25, () => {
+                        _authShowcaseTimer = setTimeout(() => {
+                          _authDeleteFrom(titleEl, AUTH_TITLE_TEXT, 70, () => {
+                            _authShowcaseTimer = setTimeout(runAuthShowcaseCycle, 450);
+                          });
+                        }, 150);
+                      });
+                    }, 300);
+                  }, 1700);
+                });
+              }, 260);
+            });
+          }, 900);
+        }, 300);
+      });
+    }, 850);
+  });
+}
+
+// ── Auth ──────────────────────────────────────────────────
+function fbLoginGoogle() {
+  if(!_fbAuth) { toast('Firebase belum siap','error'); return; }
+  const provider = new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  _fbAuth.signInWithPopup(provider)
+    .then(result => {
+      // Google user — username dari displayName atau email prefix
+      const user = result.user;
+      return _fbDb.ref('users/' + user.uid).once('value').then(snap => {
+        if(!snap.exists()) {
+          // First time Google login — buat profile
+          let username = (user.displayName || user.email.split('@')[0])
+            .toLowerCase().replace(/[^a-z0-9_]/g,'').slice(0,20);
+          // Pastikan username unik
+          return _fbDb.ref('usernames/' + username).once('value').then(usnap => {
+            if(usnap.exists()) username = username + '_' + Math.floor(Math.random()*999);
+            const profile = {
+              username, uid: user.uid,
+              xp: S.xp||0,
+              level: Math.max(1,Math.floor((S.xp||0)/100)+1),
+              displayName: user.displayName||username,
+              photoURL: user.photoURL||null
+            };
+            return Promise.all([
+              _fbDb.ref('users/' + user.uid).set(profile),
+              _fbDb.ref('usernames/' + username).set(user.uid)
+            ]);
+          });
+        }
+      });
+    })
+    .catch(e => {
+      const errEl = $('fb-auth-error');
+      if(errEl) errEl.textContent = e.message;
+      toast('Login gagal: ' + e.message, 'error');
+    });
+}
+
+function fbRegister() {
+  const username = ($('fb-username')?.value||'').trim().toLowerCase();
+  const pass = $('fb-password')?.value||'';
+  const errEl = $('fb-auth-error');
+
+  if(username.length < 3) { if(errEl) errEl.textContent='Username min 3 karakter'; return; }
+  if(pass.length < 6) { if(errEl) errEl.textContent='Password min 6 karakter'; return; }
+  if(errEl) errEl.textContent='';
+
+  // Check username availability
+  _fbDb.ref('usernames/' + username).once('value').then(snap => {
+    if(snap.exists()) {
+      if(errEl) errEl.textContent = 'Username sudah dipakai, coba yang lain';
+      return;
+    }
+    const email = username + '@oht.user';
+    _fbAuth.createUserWithEmailAndPassword(email, pass)
+      .then(() => { toast('✅ Akun dibuat!', 'success'); })
+      .catch(e => { if(errEl) errEl.textContent = fbErrMsg(e.code); });
+  });
+}
+
+function fbLogin() {
+  const username = ($('fb-username')?.value||'').trim().toLowerCase();
+  const pass = $('fb-password')?.value||'';
+  const errEl = $('fb-auth-error');
+  if(!username || !pass) { if(errEl) errEl.textContent='Isi username dan password'; return; }
+  if(errEl) errEl.textContent = '';
+  const email = username + '@oht.user';
+  _fbAuth.signInWithEmailAndPassword(email, pass)
+    .then(() => toast('✅ Masuk!', 'success'))
+    .catch(e => { if(errEl) errEl.textContent = fbErrMsg(e.code); });
+}
+
+function fbLogout() {
+  if(_fbProfile) {
+    _fbDb.ref('presence/' + _fbProfile.username).set({ online: false, lastSeen: firebase.database.ServerValue.TIMESTAMP });
+  }
+  _fbAuth.signOut();
+  if(_chatListener) _chatListener(); // detach
+  if(_friendsListener) _friendsListener();
+}
+
+function fbErrMsg(code) {
+  const map = {
+    'auth/email-already-in-use': 'Username sudah dipakai',
+    'auth/wrong-password': 'Password salah',
+    'auth/user-not-found': 'Username tidak ditemukan',
+    'auth/too-many-requests': 'Terlalu banyak percobaan, coba lagi nanti',
+  };
+  return map[code] || 'Error: ' + code;
+}
+
+// ── UI Renders ────────────────────────────────────────────
+function renderFriendsLogin() {
+  const main = $('friends-main-section'); if(main) main.style.display='none';
+  const login = $('friends-auth-section'); if(login) login.style.display='block';
+}
+
+function renderFriendsMain() {
+  if(!_fbProfile) return;
+  const login = $('friends-auth-section'); if(login) login.style.display='block';
+  const main = $('friends-main-section'); if(main) main.style.display='block';
+  const loginForm = $('friends-login-form'); if(loginForm) loginForm.style.display='none';
+
+  const nameEl = $('fb-display-name');
+  if(nameEl) {
+    const displayName = _fbProfile.displayName || _fbProfile.username;
+    nameEl.textContent = displayName;
+  }
+  const idEl = $('fb-my-id'); if(idEl) idEl.textContent = _fbProfile.username;
+
+  loadFriendsList();
+}
+
+// ── Friends ───────────────────────────────────────────────
+function fbAddFriend() {
+  const targetUsername = ($('fb-add-id')?.value||'').trim().toLowerCase();
+  if(!targetUsername) return;
+  if(targetUsername === _fbProfile?.username) { toast('Itu kamu sendiri 😅','error'); return; }
+
+  // Check if username exists
+  _fbDb.ref('usernames/' + targetUsername).once('value').then(snap => {
+    if(!snap.exists()) { toast('User tidak ditemukan','error'); return; }
+    const targetUid = snap.val();
+    // Add to my friends list
+    _fbDb.ref('friends/' + _fbUser.uid + '/' + targetUid).set({
+      username: targetUsername, addedAt: firebase.database.ServerValue.TIMESTAMP
+    });
+    // Add me to their friends list
+    _fbDb.ref('friends/' + targetUid + '/' + _fbUser.uid).set({
+      username: _fbProfile.username, addedAt: firebase.database.ServerValue.TIMESTAMP
+    });
+    toast('✅ ' + targetUsername + ' ditambahkan!', 'success');
+    const inp = $('fb-add-id'); if(inp) inp.value='';
+    loadFriendsList();
+  });
+}
+
+function loadFriendsList() {
+  if(!_fbUser) return;
+  if(_friendsListener) _friendsListener(); // detach old
+
+  const ref = _fbDb.ref('friends/' + _fbUser.uid);
+  const handler = ref.on('value', snap => {
+    const friends = snap.val() || {};
+    renderFriendsList(friends);
+  });
+  _friendsListener = () => ref.off('value', handler);
+}
+
+function renderFriendsList(friends) {
+  const el = $('friends-list'); if(!el) return;
+  const entries = Object.values(friends);
+  if(!entries.length) {
+    el.innerHTML = `<div class="chat-empty">Belum ada teman.<br>Tambah teman dengan username mereka.</div>`;
+    return;
+  }
+
+  // Check online + unread for each
+  let html = '';
+  let pending = entries.length;
+  const results = [];
+
+  entries.forEach((f, i) => {
+    results[i] = { ...f, online: false, xp: 0, unread: 0 };
+  });
+
+  const renderAll = () => {
+    el.innerHTML = results.map(f => {
+      const xpBadge = f.xp ? `LVL ${Math.max(1,Math.floor(f.xp/100)+1)} · ${f.xp} XP` : '';
+      return `<div class="friend-card" onclick="openChat('${f.username}')">
+        <div class="friend-online-dot${f.online?' active':''}"></div>
+        <div class="friend-info">
+          <div class="friend-name">${f.username}</div>
+          <div class="friend-sub">${f.online?'🟢 Online':'⚫ Offline'}${xpBadge?' · '+xpBadge:''}</div>
+        </div>
+        ${f.unread>0?`<div class="friend-unread">${f.unread}</div>`:''}
+        <div style="font-family:var(--font-mono, monospace);font-size:9px;color:var(--sub);">chat ›</div>
+      </div>`;
+    }).join('');
+  };
+
+  entries.forEach((f, i) => {
+    // Online status
+    _fbDb.ref('presence/' + f.username).once('value').then(snap => {
+      results[i].online = snap.val()?.online === true;
+      // XP
+      _fbDb.ref('usernames/' + f.username).once('value').then(usnap => {
+        const uid = usnap.val();
+        if(uid) {
+          _fbDb.ref('users/' + uid + '/xp').once('value').then(xsnap => {
+            results[i].xp = xsnap.val()||0;
+            pending--;
+            if(pending<=0) renderAll();
+          });
+        } else { pending--; if(pending<=0) renderAll(); }
+      });
+    });
+  });
+}
+
+// ── Chat ──────────────────────────────────────────────────
+function openChat(friendUsername) {
+  _chatFriendId = friendUsername;
+
+  const chatArea = $('chat-area');
+  const friendsList = $('friends-list');
+  if(chatArea) chatArea.style.display='block';
+  if(friendsList) friendsList.style.display='none';
+
+  const nameEl = $('chat-friend-name'); if(nameEl) nameEl.textContent = friendUsername;
+
+  // Check online status
+  _fbDb.ref('presence/' + friendUsername).once('value').then(snap => {
+    const online = snap.val()?.online === true;
+    const dot = $('chat-friend-status');
+    if(dot) dot.className = 'friend-online-dot' + (online?' active':'');
+  });
+
+  // Load friend XP
+  _fbDb.ref('usernames/' + friendUsername).once('value').then(snap => {
+    const uid = snap.val();
+    if(uid) _fbDb.ref('users/'+uid+'/xp').once('value').then(xsnap => {
+      const xp = xsnap.val()||0;
+      const lvl = Math.max(1,Math.floor(xp/100)+1);
+      const el=$('chat-friend-xp'); if(el) el.textContent=`LVL ${lvl} · ${xp} XP`;
+    });
+  });
+
+  loadChatMessages();
+}
+
+function closeChat() {
+  _chatFriendId = null;
+  if(_chatListener) { _chatListener(); _chatListener=null; }
+  const chatArea = $('chat-area');
+  const friendsList = $('friends-list');
+  if(chatArea) chatArea.style.display='none';
+  if(friendsList) friendsList.style.display='block';
+}
+
+function getChatId(a, b) {
+  // Deterministic chat room ID dari dua username
+  return [a,b].sort().join('__');
+}
+
+function loadChatMessages() {
+  if(!_chatFriendId || !_fbProfile) return;
+  if(_chatListener) { _chatListener(); _chatListener=null; }
+
+  const chatId = getChatId(_fbProfile.username, _chatFriendId);
+  const ref = _fbDb.ref('chats/' + chatId).limitToLast(60);
+
+  const handler = ref.on('value', snap => {
+    const msgs = snap.val() || {};
+    renderChatMessages(Object.values(msgs));
+  });
+  _chatListener = () => ref.off('value', handler);
+}
+
+function renderChatMessages(msgs) {
+  const el = $('chat-messages'); if(!el) return;
+  if(!msgs.length) {
+    el.innerHTML = '<div class="chat-empty">Mulai percakapan! 👋</div>';
+    return;
+  }
+
+  el.innerHTML = msgs.sort((a,b)=>a.ts-b.ts).map(m => {
+    const isMine = m.from === _fbProfile?.username;
+    const time = m.ts ? new Date(m.ts).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}) : '';
+    return `<div class="chat-bubble ${isMine?'mine':'theirs'}">
+      ${!isMine?`<span style="font-size:7px;font-weight:700;display:block;margin-bottom:2px;">${m.from}</span>`:''}
+      ${escapeHtml(m.text)}
+      <span class="chat-time">${time}</span>
+    </div>`;
+  }).join('');
+
+  // Scroll to bottom
+  el.scrollTop = el.scrollHeight;
+}
+
+function sendChatMsg() {
+  const inp = $('chat-input-text');
+  const text = (inp?.value||'').trim();
+  if(!text || !_chatFriendId || !_fbProfile) return;
+
+  const chatId = getChatId(_fbProfile.username, _chatFriendId);
+  _fbDb.ref('chats/' + chatId).push({
+    from: _fbProfile.username,
+    text: text,
+    ts: firebase.database.ServerValue.TIMESTAMP
+  });
+  inp.value = '';
+}
+
+function copyMyId() {
+  const id = _fbProfile?.username || '';
+  if(navigator.clipboard) {
+    navigator.clipboard.writeText(id).then(()=>toast('ID disalin!','success'));
+  } else {
+    toast(id,'info');
+  }
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Init friends page ──────────────────────────────────────
+function initFriendsPage() {
+  initFirebase();
+  closeChat();
+  if(_fbUser && _fbProfile) {
+    renderFriendsMain();
+  } else if(_fbUser) {
+    // Auth but no profile yet
+  } else {
+    renderFriendsLogin();
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// FIREBASE — Numeric ID, Settings Auth, Profile Visitors
+// ════════════════════════════════════════════════════════════
+
+// Generate 6-digit numeric ID unik
+function generateNumericId() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+// Render auth block di Settings page
+function renderSettingsAuth() {
+  const el = $('settings-auth-block'); if(!el) return;
+
+  if(!_fbUser || !_fbProfile) {
+    // Not logged in — cukup tombol LOGIN, form lengkap ada di halaman auth
+    el.innerHTML = '<button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="showAuthPage()">LOGIN</button>';
+    return;
+  }
+
+  // Logged in
+  const googleLinked = (_fbUser.providerData||[]).some(function(p){return p.providerId==='google.com';});
+  const emailLinked  = (_fbUser.providerData||[]).some(function(p){return p.providerId==='password';});
+  const googleEmail  = (_fbUser.providerData||[]).find(function(p){return p.providerId==='google.com';})?.email || _fbUser.email || '';
+
+  let html = '<div style="background:var(--surface);border:var(--bo);padding:14px;">';
+
+  // Header
+  html += '<div style="display:flex;align-items:center;gap:11px;margin-bottom:14px;">';
+  html += '<div class="friend-online-dot active"></div>';
+  html += '<div><div style="font-family:\'Archivo Black\',sans-serif;font-size:14px;">' + (_fbProfile.displayName||_fbProfile.username) + '</div>';
+  html += '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:8px;color:var(--sub);">@' + _fbProfile.username + '</div></div></div>';
+
+  // Label
+  html += '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:7px;color:var(--sub);margin-bottom:7px;text-transform:uppercase;letter-spacing:1px;">Akun Terhubung</div>';
+
+  // Google row
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bc);">';
+  html += '<div style="display:flex;align-items:center;gap:9px;">';
+  html += '<svg width="16" height="16" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 32.6 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 20-8.9 20-20 0-1.3-.1-2.7-.4-4z"/></svg>';
+  html += '<div><div style="font-family:\'Archivo Black\',sans-serif;font-size:10px;">Google</div>';
+  if(googleLinked) html += '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:8px;color:var(--sub);">' + googleEmail + '</div>';
+  html += '</div></div>';
+  if(googleLinked) {
+    if(emailLinked) html += '<button class="btn btn-xs" style="border-color:#f44;color:#f44;" onclick="fbUnlinkGoogle()">Lepas</button>';
+    else html += '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:8px;color:var(--lime);">✅</span>';
+  } else {
+    html += '<button class="btn btn-xs" onclick="fbLinkGoogle()">Hubungkan</button>';
+  }
+  html += '</div>';
+
+  // Email/password row
+  if(emailLinked) {
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bc);">';
+    html += '<div><div style="font-family:\'Archivo Black\',sans-serif;font-size:10px;">Email / Password</div>';
+    html += '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:8px;color:var(--sub);">' + (_fbUser.email||'') + '</div></div>';
+    if(googleLinked) html += '<button class="btn btn-xs" style="border-color:#f44;color:#f44;" onclick="fbUnlinkEmail()">Lepas</button>';
+    else html += '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:8px;color:var(--lime);">✅</span>';
+    html += '</div>';
+  }
+
+  html += '<button class="btn" style="width:100%;justify-content:center;margin-top:11px;" onclick="fbLogout()">🚪 Keluar</button>';
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function copyFriendId(id) {
+  if(navigator.clipboard) {
+    navigator.clipboard.writeText(id).then(()=>toast('ID '+id+' disalin!','success'));
+  } else toast('ID: '+id,'info');
+}
+
+// ── Update fbOnAuthChanged untuk numeric ID + render settings ──
+// Override fbOnAuthChanged tambah numId dan settings render
+// fbOnAuthChanged override replaced with inline merge
+
+// ── Add friend by numeric ID ──
+function fbAddFriendByNumId(numId) {
+  if(!numId || !_fbProfile) return;
+  numId = numId.trim();
+  if(numId === _fbProfile.numId) { toast('Itu ID kamu sendiri 😅','error'); return; }
+  _fbDb.ref('numIds/' + numId).once('value').then(snap => {
+    if(!snap.exists()) { toast('ID tidak ditemukan','error'); return; }
+    const targetUid = snap.val();
+    _fbDb.ref('users/' + targetUid + '/username').once('value').then(usnap => {
+      const targetUsername = usnap.val();
+      _fbDb.ref('friends/' + _fbUser.uid + '/' + targetUid).set({
+        username: targetUsername, numId, addedAt: firebase.database.ServerValue.TIMESTAMP
+      });
+      _fbDb.ref('friends/' + targetUid + '/' + _fbUser.uid).set({
+        username: _fbProfile.username, numId: _fbProfile.numId,
+        addedAt: firebase.database.ServerValue.TIMESTAMP
+      });
+      toast('✅ Teman ditambahkan!', 'success');
+      loadFriendsList();
+    });
+  });
+}
+
+// ── Profile: ID display + visitors ──
+function renderProfileSocialSection() {
+  const el = $('profile-social-section');
+  const idVal = $('profile-id-value');
+  const idCopyBtn = $('profile-id-copy-btn');
+
+  if(!_fbUser || !_fbProfile) {
+    if(idVal) idVal.textContent = 'Login di Setelan';
+    if(idCopyBtn) idCopyBtn.style.display = 'none';
+    if(el) el.innerHTML = "<div style='padding:11px;text-align:center;font-size:8px;color:var(--sub);border:var(--bo);'>Login di Setelan untuk mendapatkan ID</div>";
+    return;
+  }
+
+  const numId = _fbProfile.numId || '---';
+  if(idVal) idVal.textContent = numId;
+  if(idCopyBtn) { idCopyBtn.style.display = 'inline-flex'; idCopyBtn.onclick = (e)=>{ e.stopPropagation(); copyFriendId(numId); }; }
+  if(!el) return;
+
+  _fbDb.ref('visitors/' + _fbUser.uid).orderByChild('ts').limitToLast(3).once('value').then(function(snap) {
+    const visitors = [];
+    snap.forEach(function(child) { visitors.unshift(child.val()); });
+
+    let html = "";
+    // Visitors
+    html += "<div style='background:var(--surface);border:var(--bo);padding:14px 16px;'>";
+    html += "<div style='font-size:7px;color:var(--sub);margin-bottom:9px;text-transform:uppercase;letter-spacing:1px;'>👀 Pengunjung Terakhir</div>";
+
+    if(visitors.length) {
+      visitors.forEach(function(v) {
+        html += "<div style='display:flex;align-items:center;gap:9px;margin-bottom:7px;'>";
+        html += "<div style='font-size:10px;'>@" + v.username + "</div>";
+        html += "<div style='font-size:7px;color:var(--sub);'>" + timeAgo(v.ts) + "</div>";
+        html += "</div>";
+      });
+    } else {
+      html += "<div style='font-size:8px;color:var(--sub);'>Belum ada pengunjung</div>";
+    }
+    html += "</div>";
+    el.innerHTML = html;
+  });
+}
+
+function timeAgo(ts) {
+  if(!ts) return '';
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff/60000);
+  const h = Math.floor(diff/3600000);
+  const d = Math.floor(diff/86400000);
+  if(d>0) return d+'h lalu';
+  if(h>0) return h+'j lalu';
+  if(m>0) return m+'m lalu';
+  return 'baru saja';
+}
+
+// Record visitor saat buka profile page
+function recordProfileVisit(ownerUid) {
+  if(!_fbUser || !_fbProfile || ownerUid === _fbUser.uid) return;
+  _fbDb.ref('visitors/' + ownerUid).push({
+    username: _fbProfile.username,
+    numId: _fbProfile.numId||'',
+    ts: firebase.database.ServerValue.TIMESTAMP
+  });
+}
+
+// initProfilePage override removed
+
+// navigate hook removed (merged inline)
+
+// renderFriendsMain duplicate removed
+
+// Override copyMyId untuk numId
+function copyMyId() {
+  const id = _fbProfile?.numId || _fbProfile?.username || '';
+  if(navigator.clipboard) {
+    navigator.clipboard.writeText(id).then(()=>toast('ID '+id+' disalin!','success'));
+  } else toast('ID: '+id, 'info');
+}
+
+// Override fbAddFriend untuk coba numId dulu, fallback ke username
+function fbAddFriend() {
+  const input = ($('fb-add-id')?.value||'').trim();
+  if(!input) return;
+  // Jika input 6 digit angka → pakai numId
+  if(/^\d{6}$/.test(input)) {
+    fbAddFriendByNumId(input);
+  } else {
+    // Coba sebagai username
+    const targetUsername = input.toLowerCase().replace(/[^a-z0-9_]/g,'');
+    if(targetUsername === _fbProfile?.username) { toast('Itu kamu sendiri 😅','error'); return; }
+    _fbDb.ref('usernames/' + targetUsername).once('value').then(snap => {
+      if(!snap.exists()) { toast('User tidak ditemukan. Coba pakai ID 6 digit.','error'); return; }
+      const targetUid = snap.val();
+      _fbDb.ref('friends/' + _fbUser.uid + '/' + targetUid).set({
+        username: targetUsername, addedAt: firebase.database.ServerValue.TIMESTAMP
+      });
+      _fbDb.ref('friends/' + targetUid + '/' + _fbUser.uid).set({
+        username: _fbProfile.username, addedAt: firebase.database.ServerValue.TIMESTAMP
+      });
+      toast('✅ '+targetUsername+' ditambahkan!','success');
+      const inp=$('fb-add-id'); if(inp)inp.value='';
+      loadFriendsList();
+    });
+  }
+}
+
+// navigateMore hook removed (merged inline)
+
+// ════════════════════════════════════════
+// FRIENDS — View Manager & Search
+// ════════════════════════════════════════
+function showFriendsView(view) {
+  ['list','search','chat'].forEach(v => {
+    const el = $('friends-view-' + v);
+    if(el) el.style.display = v === view ? 'block' : 'none';
+  });
+  if(view === 'list') loadFriendsList();
+  if(view === 'search') {
+    const inp = $('fb-search-input');
+    if(inp) { inp.value=''; inp.focus(); }
+    const res = $('friends-search-result');
+    if(res) res.innerHTML = '';
+  }
+}
+
+function fbSearchFriend(query) {
+  query = query.trim();
+  const res = $('friends-search-result');
+  if(!res) return;
+  if(query.length < 2) { res.innerHTML=''; return; }
+
+  res.innerHTML = '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;color:var(--sub);padding:9px;">Mencari...</div>';
+
+  const isNumId = /^\d{4,6}$/.test(query);
+
+  const showResult = (uid, profile) => {
+    if(!uid || !profile) {
+      res.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:9px;color:var(--sub);padding:14px;text-align:center;">Tidak ditemukan</div>';
+      return;
+    }
+    const isMe = uid === _fbUser?.uid;
+    window._searchResult = {uid, profile};
+    const lvl = Math.max(1, Math.floor((profile.xp||0)/100)+1);
+    res.innerHTML = '<div class="friend-card" style="cursor:default;display:flex;align-items:center;justify-content:space-between;">' +
+      '<div>' +
+        '<div class="friend-name">' + (profile.displayName||profile.username) + '</div>' +
+        '<div class="friend-sub">@' + profile.username + ' · ID: ' + (profile.numId||'—') + '</div>' +
+        '<div class="friend-sub">LVL ' + lvl + ' · ' + (profile.xp||0) + ' XP</div>' +
+      '</div>' +
+      (isMe ? '<div style="font-size:8px;color:var(--sub);">Ini kamu</div>' :
+'<button class="btn btn-sm btn-primary" onclick="fbAddFriendFromResult()">+ TAMBAH</button>'
+      ) +
+    '</div>';
+  };
+
+  if(isNumId) {
+    _fbDb.ref('numIds/' + query).once('value').then(snap => {
+      if(!snap.exists()) { showResult(null, null); return; }
+      const uid = snap.val();
+      _fbDb.ref('users/' + uid).once('value').then(usnap => showResult(uid, usnap.val()));
+    });
+  } else {
+    // Search by username
+    const uname = query.toLowerCase().replace(/[^a-z0-9_]/g,'');
+    _fbDb.ref('usernames/' + uname).once('value').then(snap => {
+      if(!snap.exists()) { showResult(null, null); return; }
+      const uid = snap.val();
+      _fbDb.ref('users/' + uid).once('value').then(usnap => showResult(uid, usnap.val()));
+    });
+  }
+}
+
+function fbAddFriendDirect(targetUid, targetUsername, targetNumId) {
+  if(!_fbUser || !_fbProfile) return;
+  _fbDb.ref('friends/' + _fbUser.uid + '/' + targetUid).set({
+    username: targetUsername, numId: targetNumId,
+    displayName: targetUsername,
+    addedAt: firebase.database.ServerValue.TIMESTAMP
+  });
+  _fbDb.ref('friends/' + targetUid + '/' + _fbUser.uid).set({
+    username: _fbProfile.username, numId: _fbProfile.numId||'',
+    displayName: _fbProfile.displayName||_fbProfile.username,
+    addedAt: firebase.database.ServerValue.TIMESTAMP
+  });
+  toast('✅ ' + targetUsername + ' ditambahkan!', 'success');
+  showFriendsView('list');
+}
+
+// Override openChat untuk pakai view system
+function openChat(friendUsername) {
+  _chatFriendId = friendUsername;
+  showFriendsView('chat');
+  const nameEl = $('chat-friend-name'); if(nameEl) nameEl.textContent = friendUsername;
+  _fbDb.ref('presence/' + friendUsername).once('value').then(snap => {
+    const online = snap.val()?.online === true;
+    const dot = $('chat-friend-status');
+    if(dot) dot.className = 'friend-online-dot' + (online?' active':'');
+  });
+  _fbDb.ref('usernames/' + friendUsername).once('value').then(snap => {
+    const uid = snap.val();
+    if(uid) _fbDb.ref('users/'+uid+'/xp').once('value').then(xsnap => {
+      const xp = xsnap.val()||0;
+      const el=$('chat-friend-xp'); if(el) el.textContent='LVL ' + Math.max(1,Math.floor(xp/100)+1) + ' · ' + xp + ' XP';
+    });
+  });
+  loadChatMessages();
+}
+
+function closeChat() {
+  _chatFriendId = null;
+  if(_chatListener) { _chatListener(); _chatListener=null; }
+  showFriendsView('list');
+}
+
+// Override initFriendsPage
+function initFriendsPage() {
+  initFirebase();
+  if(_fbUser && _fbProfile) {
+    renderFriendsMain();
+    showFriendsView('list');
+  } else {
+    renderFriendsLogin();
+  }
+}
+
+// ── Link / Unlink akun ────────────────────────────────────
+function fbLinkGoogle() {
+  if(!_fbAuth || !_fbUser) return;
+  const provider = new firebase.auth.GoogleAuthProvider();
+  _fbUser.linkWithPopup(provider)
+    .then(() => {
+      toast('✅ Google berhasil dihubungkan!', 'success');
+      renderSettingsAuth();
+    })
+    .catch(e => {
+      if(e.code === 'auth/credential-already-in-use') {
+        toast('Akun Google ini sudah dipakai user lain', 'error');
+      } else {
+        toast('Gagal: ' + e.message, 'error');
+      }
+    });
+}
+
+function fbUnlinkGoogle() {
+  if(!_fbUser) return;
+  // Hanya boleh unlink kalau masih ada provider lain (email)
+  const providers = _fbUser.providerData.map(p => p.providerId);
+  if(providers.length <= 1) {
+    toast('Tidak bisa dilepas — ini satu-satunya metode login kamu', 'error');
+    return;
+  }
+  if(!confirm('Lepas Google dari akun ini?')) return;
+  _fbUser.unlink('google.com')
+    .then(() => { toast('Google dilepas', 'info'); renderSettingsAuth(); })
+    .catch(e => toast('Gagal: ' + e.message, 'error'));
+}
+
+function fbUnlinkEmail() {
+  if(!_fbUser) return;
+  const providers = _fbUser.providerData.map(p => p.providerId);
+  if(providers.length <= 1) {
+    toast('Tidak bisa dilepas — ini satu-satunya metode login kamu', 'error');
+    return;
+  }
+  if(!confirm('Lepas Email/Password dari akun ini?')) return;
+  _fbUser.unlink('password')
+    .then(() => { toast('Email dilepas', 'info'); renderSettingsAuth(); })
+    .catch(e => toast('Gagal: ' + e.message, 'error'));
+}
+
+function fbAddFriendFromResult() {
+  const r = window._searchResult;
+  if(!r) return;
+  fbAddFriendDirect(r.uid, r.profile.username, r.profile.numId||'');
+}
