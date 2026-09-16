@@ -1,5 +1,6 @@
 {
-  "description": "Track and manage daily habits with an intuitive interface designed for users seeking to improve productivity and personal growth.",
+  "title": "OHT - Orias Habit Tracker",
+  "description": "Orias Habit Tracker (OHT) — lacak dan kelola kebiasaan harianmu dengan tampilan yang simpel dan enak dipakai.",
   "robots": {
     "index": false
   },
