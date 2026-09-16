@@ -1,0 +1,11 @@
+{
+  "title": "OHT - Orias Habit Tracker",
+  "description": "Orias Habit Tracker (OHT) — lacak dan kelola kebiasaan harianmu dengan tampilan yang simpel dan enak dipakai.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
